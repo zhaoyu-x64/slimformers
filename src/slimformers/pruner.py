@@ -4,6 +4,7 @@ from transformers.modeling_utils import Conv1D
 from rich.console import Console
 from rich.panel import Panel
 from .discovery import DISCOVERY_REGISTRY, default_discover, ATTENTION_DISCOVERY_REGISTRY
+from rich.progress import Progress, BarColumn, TimeElapsedColumn, MofNCompleteColumn
 import psutil
 import os
 
@@ -165,55 +166,60 @@ class Pruner:
         blocks = Pruner._discover_mlp_blocks(self.model)
         console.print(f"[bold]Discovered {len(blocks)} MLP blocks[/bold]\n")
 
-        for i, blk in enumerate(blocks):
-            console.print(f"[bold white]Block {i}[/bold white] – Type: {blk['type']}")
+        with Progress(
+            "[progress.description]{task.description}",
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True
+        ) as progress:
+            task = progress.add_task("Pruning MLP blocks", total=len(blocks))
 
-            hook_key = blk["gate_name"] if blk["type"] == "gated" else blk["fc_name"]
-            
-            self.activations = {}
-            handle = self._hook_activations(hook_key)
+            for i, blk in enumerate(blocks):
+                hook_key = blk["gate_name"] if blk["type"] == "gated" else blk["fc_name"]
+                self.activations = {}
+                handle = self._hook_activations(hook_key)
 
-            total_acts = None
-            num_batches = 0
+                total_acts = None
+                num_batches = 0
 
-            for batch in dataloader:
-                if num_batches >= max_batches:
-                    break
-                with torch.no_grad():
-                    _ = self.model(**{k: v.to(device) for k, v in batch.items()})
-                act = self.activations.pop(hook_key, None)
-                if act is None:
-                    continue
-                total_acts = act if total_acts is None else total_acts + act
-                num_batches += 1
+                for batch in dataloader:
+                    if num_batches >= max_batches:
+                        break
+                    with torch.no_grad():
+                        _ = self.model(**{k: v.to(device) for k, v in batch.items()})
+                    act = self.activations.pop(hook_key, None)
+                    if act is None:
+                        continue
+                    total_acts = act if total_acts is None else total_acts + act
+                    num_batches += 1
 
-            handle.remove()
+                handle.remove()
 
-            if num_batches == 0:
-                raise RuntimeError(f"No activations captured for block {i} ({hook_key})")
+                if num_batches == 0:
+                    raise RuntimeError(f"No activations captured for block {i} ({hook_key})")
 
-            avg_acts = total_acts / num_batches
-            keep_idx, orig = self.pruning_strategy(avg_acts, sparsity)
+                avg_acts = total_acts / num_batches
+                keep_idx, orig = self.pruning_strategy(avg_acts, sparsity)
 
-            if blk["type"] == "gated":
-                new_gate = self._rebuild(blk["gate"],   keep_out=keep_idx)
-                new_up   = self._rebuild(blk["up"],     keep_out=keep_idx)
-                new_down = self._rebuild(blk["down"],   keep_in=keep_idx)
+                if blk["type"] == "gated":
+                    new_gate = self._rebuild(blk["gate"], keep_out=keep_idx)
+                    new_up   = self._rebuild(blk["up"],   keep_out=keep_idx)
+                    new_down = self._rebuild(blk["down"], keep_in=keep_idx)
 
-                self._replace_module(blk["gate_name"], new_gate)
-                self._replace_module(blk["up_name"],   new_up)
-                self._replace_module(blk["down_name"], new_down)
+                    self._replace_module(blk["gate_name"], new_gate)
+                    self._replace_module(blk["up_name"],   new_up)
+                    self._replace_module(blk["down_name"], new_down)
 
-                console.print(f"  [green]Pruned gated MLP[/green]: {orig} → {keep_idx.numel()} units")
+                else:
+                    new_fc   = self._rebuild(blk["fc"],   keep_out=keep_idx)
+                    new_proj = self._rebuild(blk["proj"], keep_in=keep_idx)
 
-            else:
-                new_fc   = self._rebuild(blk["fc"],   keep_out=keep_idx)
-                new_proj = self._rebuild(blk["proj"], keep_in=keep_idx)
+                    self._replace_module(blk["fc_name"],   new_fc)
+                    self._replace_module(blk["proj_name"], new_proj)
 
-                self._replace_module(blk["fc_name"],   new_fc)
-                self._replace_module(blk["proj_name"], new_proj)
-
-                console.print(f"  [green]Pruned FFN[/green]: {orig} → {keep_idx.numel()} units")
+                progress.advance(task)
 
         console.rule("[bold green]Pruning Complete")    
 
