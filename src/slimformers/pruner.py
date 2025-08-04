@@ -279,61 +279,71 @@ class Pruner:
         blocks = ATTENTION_DISCOVERY_REGISTRY.get(type(self.model).__name__, lambda m: [])(self.model)
         console.print(f"[bold]Discovered {len(blocks)} attention blocks[/bold]\n")
 
-        for blk in blocks:
-            prefix = blk["prefix"]
-            key = blk.get("qkv_name") or blk["q_name"]
-            handle = self._hook_activations(key)
-            total_acts, n = None, 0
-            for batch in dataloader:
-                if n >= max_batches:
-                    break
-                with torch.no_grad():
-                    _ = self.model(**{k: v.to(device) for k, v in batch.items()})
-                act = self.activations.pop(key, None)
-                if act is not None:
-                    total_acts = act if total_acts is None else total_acts + act
-                    n += 1
-            handle.remove()
-            if n == 0:
-                raise RuntimeError(f"No activations for attention block {prefix}")
+        with Progress(
+                "[progress.description]{task.description}",
+                BarColumn(),
+                MofNCompleteColumn(),
+                TimeElapsedColumn(),
+                console=console,
+                transient=True
+        ) as progress:
+            task = progress.add_task("Pruning Attention Blocks", total=len(blocks))
 
-            avg_act = (total_acts / n).abs()    
-            B, T, D = avg_act.shape
-            H = blk["num_heads"]
-            head_dim_qkv = D // H
+            for blk in blocks:
+                prefix = blk["prefix"]
+                key = blk.get("qkv_name") or blk["q_name"]
+                handle = self._hook_activations(key)
+                total_acts, n = None, 0
+                for batch in dataloader:
+                    if n >= max_batches:
+                        break
+                    with torch.no_grad():
+                        _ = self.model(**{k: v.to(device) for k, v in batch.items()})
+                    act = self.activations.pop(key, None)
+                    if act is not None:
+                        total_acts = act if total_acts is None else total_acts + act
+                        n += 1
+                handle.remove()
+                if n == 0:
+                    raise RuntimeError(f"No activations for attention block {prefix}")
 
-            head_mags = avg_act.view(B, T, H, head_dim_qkv).mean(dim=(0, 1, 3))
-            keep, orig = self.pruning_strategy(head_mags, sparsity)
+                avg_act = (total_acts / n).abs()    
+                B, T, D = avg_act.shape
+                H = blk["num_heads"]
+                head_dim_qkv = D // H
 
-            idx_qkv = torch.cat([
-                torch.arange(h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device)
-                for h in keep
-            ])
+                head_mags = avg_act.view(B, T, H, head_dim_qkv).mean(dim=(0, 1, 3))
+                keep, orig = self.pruning_strategy(head_mags, sparsity)
 
-            out_layer = blk["out"]
-            if isinstance(out_layer, Conv1D):
-                in_dim = out_layer.weight.size(0)
-            else:
-                in_dim = out_layer.in_features
-            head_dim_out = in_dim // H
-            idx_out = torch.cat([
-                torch.arange(h * head_dim_out, (h + 1) * head_dim_out, device=keep.device)
-                for h in keep
-            ])
+                idx_qkv = torch.cat([
+                    torch.arange(h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device)
+                    for h in keep
+                ])
 
-            if blk["type"] == "packed":
-                new_qkv = self._rebuild(blk["qkv"], keep_out=idx_qkv)
-                self._replace_module(blk["qkv_name"], new_qkv)
-            else:
-                for name in ("q", "k", "v"):
-                    new_lin = self._rebuild(blk[name], keep_out=idx_qkv)
-                    self._replace_module(blk[f"{name}_name"], new_lin)
+                out_layer = blk["out"]
+                if isinstance(out_layer, Conv1D):
+                    in_dim = out_layer.weight.size(0)
+                else:
+                    in_dim = out_layer.in_features
+                head_dim_out = in_dim // H
+                idx_out = torch.cat([
+                    torch.arange(h * head_dim_out, (h + 1) * head_dim_out, device=keep.device)
+                    for h in keep
+                ])
 
-            new_out = self._rebuild(blk["out"], keep_in=idx_out)
-            self._replace_module(blk["out_name"], new_out)
-            self._patch_attention_module(prefix, keep.numel(), head_dim_out)
+                if blk["type"] == "packed":
+                    new_qkv = self._rebuild(blk["qkv"], keep_out=idx_qkv)
+                    self._replace_module(blk["qkv_name"], new_qkv)
+                else:
+                    for name in ("q", "k", "v"):
+                        new_lin = self._rebuild(blk[name], keep_out=idx_qkv)
+                        self._replace_module(blk[f"{name}_name"], new_lin)
 
-            console.print(f"[green]Pruned {prefix}[/green]: {orig} → {keep.numel()} heads")
+                new_out = self._rebuild(blk["out"], keep_in=idx_out)
+                self._replace_module(blk["out_name"], new_out)
+                self._patch_attention_module(prefix, keep.numel(), head_dim_out)
+
+                progress.advance(task)
 
         console.rule("[bold green]Attention Pruning Complete")
 
