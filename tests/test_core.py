@@ -7,8 +7,8 @@ from slimformers import Pruner
 from slimformers import lora_finetune
 
 # Load model and tokenizer
-model_id = "deepseek-ai/deepseek-coder-1.3b-base"
-# model_id = "gpt2"
+# model_id = "deepseek-ai/deepseek-coder-1.3b-base"
+model_id = "gpt2"
 model = AutoModelForCausalLM.from_pretrained(model_id)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
