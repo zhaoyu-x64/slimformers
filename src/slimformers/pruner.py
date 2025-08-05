@@ -162,7 +162,7 @@ class Pruner:
         self.model.eval()
         device = next(self.model.parameters()).device
 
-        console.rule(f"[bold]Starting Pruning at {sparsity:.0%} Sparsity")
+        console.print(f"[bold]Starting Pruning at {sparsity:.0%} Sparsity")
         blocks = Pruner._discover_mlp_blocks(self.model)
         console.print(f"[bold]Discovered {len(blocks)} MLP blocks[/bold]\n")
 
@@ -221,7 +221,7 @@ class Pruner:
 
                 progress.advance(task)
 
-        console.rule("[bold green]Pruning Complete")    
+        console.print("[bold green]Pruning Complete")    
 
     def report(self):
         """
@@ -274,7 +274,7 @@ class Pruner:
         """
         self.model.eval()
         device = next(self.model.parameters()).device
-        console.rule(f"[bold]Starting Attention Pruning at {sparsity:.0%} Sparsity")
+        console.print(f"[bold]Starting Attention Pruning at {sparsity:.0%} Sparsity")
 
         blocks = ATTENTION_DISCOVERY_REGISTRY.get(type(self.model).__name__, lambda m: [])(self.model)
         console.print(f"[bold]Discovered {len(blocks)} attention blocks[/bold]\n")
@@ -345,7 +345,7 @@ class Pruner:
 
                 progress.advance(task)
 
-        console.rule("[bold green]Attention Pruning Complete")
+        console.print("[bold green]Attention Pruning Complete")
 
     def _patch_attention_module(self, prefix: str, new_heads: int, head_dim_out: int):
         """
