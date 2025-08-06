@@ -85,8 +85,15 @@ class Pruner:
         """
         Rebuild a Linear layer by slicing its input/output weights.
         """
-        W = layer.weight.data.cpu() 
-        B = layer.bias.data.cpu() if layer.bias is not None else None
+        
+        device = layer.weight.device
+        W = layer.weight.data
+        B = layer.bias.data if layer.bias is not None else None
+
+        if keep_out is not None:
+            keep_out = keep_out.to(device)
+        if keep_in is not None:
+            keep_in = keep_in.to(device)
 
         if keep_out is not None and keep_in is None:
             new_W = W[keep_out, :]
@@ -108,8 +115,15 @@ class Pruner:
         """
         Same as _rebuild_linear but for HuggingFace's Conv1D (used in GPT-2).
         """
-        W = layer.weight.data.cpu()
-        B = layer.bias.data.cpu() if layer.bias is not None else None
+        
+        device = layer.weight.device
+        W = layer.weight.data
+        B = layer.bias.data if layer.bias is not None else None
+        
+        if keep_out is not None:
+            keep_out = keep_out.to(device)
+        if keep_in is not None:
+            keep_in = keep_in.to(device)
 
         if keep_out is not None and keep_in is None:
             new_W = W[:, keep_out]
