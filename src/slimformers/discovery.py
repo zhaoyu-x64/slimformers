@@ -54,6 +54,15 @@ def discover_llama_ffns(model):
         })
     return blocks
 
+def discover_gpt_oss_ffns(model):
+    """
+    Placeholder for GPT-OSS FFN discovery.
+
+    GPT-OSS uses Mixture-of-Experts (MoE) layers, which require
+    custom handling to locate and prune individual experts or neurons.
+    """
+    return []
+
 # Registry mapping HuggingFace model class names to discovery functions
 DISCOVERY_REGISTRY = {
     "GPT2Model":           discover_gpt2_ffns,
@@ -62,6 +71,7 @@ DISCOVERY_REGISTRY = {
     "BertForMaskedLM":     discover_bert_ffns,
     "LlamaModel":          discover_llama_ffns,
     "LlamaForCausalLM":    discover_llama_ffns,
+    "GPTOSSModel":         discover_gpt_oss_ffns,
 }
 
 def discover_ffns_model_agnostic(model, min_hidden_dim=128):
@@ -118,14 +128,7 @@ def discover_ffns_model_agnostic(model, min_hidden_dim=128):
 
     return blocks
 
-def discover_gpt_oss_ffns(model):
-    """
-    Placeholder for GPT-OSS FFN discovery.
 
-    GPT-OSS uses Mixture-of-Experts (MoE) layers, which require
-    custom handling to locate and prune individual experts or neurons.
-    """
-    return []
 
 def default_discover(model):
     """
@@ -231,4 +234,5 @@ ATTENTION_DISCOVERY_REGISTRY = {
     "BertForMaskedLM": discover_bert_attention,
     "LlamaModel": discover_llama_attention,
     "LlamaForCausalLM": discover_llama_attention,
+    "GPTOSSModel": discover_gpt_oss_attention,
 }
