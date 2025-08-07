@@ -118,6 +118,15 @@ def discover_ffns_model_agnostic(model, min_hidden_dim=128):
 
     return blocks
 
+def discover_gpt_oss_ffns(model):
+    """
+    Placeholder for GPT-OSS FFN discovery.
+
+    GPT-OSS uses Mixture-of-Experts (MoE) layers, which require
+    custom handling to locate and prune individual experts or neurons.
+    """
+    return []
+
 def default_discover(model):
     """
     Default discovery entry point when no specific handler exists.
@@ -205,6 +214,15 @@ def discover_llama_attention(model):
             "num_heads": num_heads,
         })
     return blocks
+
+def discover_gpt_oss_attention(model):
+    """
+    Placeholder for GPT-OSS attention discovery.
+
+    GPT-OSS likely uses separate Q/K/V projections similar to LLaMA,
+    but this needs to be confirmed and mapped per layer.
+    """
+    return []
 
 ATTENTION_DISCOVERY_REGISTRY = {
     "GPT2Model": discover_gpt2_attention,
