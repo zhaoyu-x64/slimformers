@@ -9,7 +9,7 @@ def lora_finetune(
     dataloader,
     epochs=1,
     lr=1e-4,
-    device="cpu",
+    device="cuda",
     r=8,
     alpha=16,
     dropout=0.05,
