@@ -22,6 +22,7 @@ class Pruner:
         self.initial_params_num = sum(p.numel() for p in model.parameters())
         
         self._init_cpu_mem = psutil.Process(os.getpid()).memory_info().rss / 1024**2
+        
         if torch.cuda.is_available():
             device = next(model.parameters()).device
             torch.cuda.reset_peak_memory_stats(device)
@@ -69,6 +70,7 @@ class Pruner:
         total = mags.numel()
         k = int((1.0 - sparsity) * total)
         keep = torch.topk(mags, k=k).indices
+        
         return keep, total
 
 

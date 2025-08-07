@@ -9,6 +9,7 @@ from slimformers import lora_finetune
 # Load model and tokenizer
 # model_id = "deepseek-ai/deepseek-coder-1.3b-base"
 model_id = "gpt2"
+
 model = AutoModelForCausalLM.from_pretrained(model_id)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
@@ -61,10 +62,10 @@ gen_ids = model.generate(
     top_k=50,
     top_p=0.95,
 )
+
 print("Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True))
 
 # Apply LoRA 
-print("\nStarting LoRA fine-tuning...")
 model = lora_finetune(
     model=model,
     dataloader=dataloader,
@@ -77,14 +78,12 @@ model = lora_finetune(
     task_type=TaskType.CAUSAL_LM,
 )
 
-print("\nAfter LoRA fine-tuning:")
 print(f"Fine-tuned model size: {count_parameters(model):,} params")
 
 # Test generation
 model.eval()
 with torch.no_grad():
     out_ft = model(**sample_inputs)
-print("Forward pass after LoRA, logits.shape =", out_ft.logits.shape)
 
 gen_ids_ft = model.generate(
     **sample_inputs,
