@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from peft import get_peft_model, LoraConfig, TaskType
+from rich.console import Console
+from rich.progress import Progress, BarColumn, TimeElapsedColumn, MofNCompleteColumn
 
 def lora_finetune(
     model,
@@ -30,7 +32,8 @@ def lora_finetune(
     Returns:
         nn.Module: LoRA-adapted fine-tuned model
     """
-    
+
+    console = Console()
     model.to(device)
     model.train()
 
@@ -52,7 +55,7 @@ def lora_finetune(
                 target_modules.add(blk["down_name"].rsplit(".", 1)[-1])
         target_modules = list(sorted(target_modules))
 
-        print(f"[LoRA] Auto-selected target_modules: {target_modules}")
+        console.print(f"[bold green][LoRA][/bold green] Auto-selected target_modules: {target_modules}")
     except Exception as e:
         raise ValueError(f"Could not infer target_modules: {e}")
 
@@ -70,20 +73,36 @@ def lora_finetune(
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
-    for epoch in range(epochs):
-        total_loss = 0.0
-        for batch in dataloader:
-            inputs = {k: v.to(device) for k, v in batch.items()}
-            labels = inputs.get("input_ids")
+    with Progress(
+        "[progress.description]{task.description}",
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console
+    ) as progress:
 
-            optimizer.zero_grad()
-            outputs = model(**inputs)
-            logits = outputs.logits
-            loss = nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
+        epoch_task = progress.add_task("[cyan]Training epochs", total=epochs)
 
-        print(f"[LoRA] Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(dataloader):.4f}")
+        for epoch in range(epochs):
+            total_loss = 0.0
+            batch_task = progress.add_task(f"[magenta]Epoch {epoch+1}/{epochs}", total=len(dataloader))
+
+            for batch in dataloader:
+                inputs = {k: v.to(device) for k, v in batch.items()}
+                labels = inputs.get("input_ids")
+
+                optimizer.zero_grad()
+                outputs = model(**inputs)
+                logits = outputs.logits
+                loss = nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+
+                progress.advance(batch_task)
+
+            progress.remove_task(batch_task)
+            console.print(f"[green][LoRA][/green] Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(dataloader):.4f}")
+            progress.advance(epoch_task)
 
     return model
