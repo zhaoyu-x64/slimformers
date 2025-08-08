@@ -27,6 +27,7 @@ keywords = [
   "LoRA",
   "model optimization",
   "compression",
+  "transformer fine-tuning",
 ]
 
 [project.urls]
