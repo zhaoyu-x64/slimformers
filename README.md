@@ -70,8 +70,12 @@ def custom_neuron_selection(activations, sparsity):
     """Custom strategy: keep neurons with highest variance"""
     if activations.dim() == 3:
         variance = activations.var(dim=(0,1))
-    else:
-        variance = activations.var(dim=0)
+    elif activations.dim() == 2:
+        variance = activations.var(dim=(0))
+    elif activations.dim() == 1:
+        variance = activations.var()
+    else: 
+        raise ValueError(f"Bad activation shape {activations.shape}")
     
     total = variance.size(0)
     k = int((1.0 - sparsity) * total)
