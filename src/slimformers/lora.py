@@ -89,12 +89,12 @@ def lora_finetune(
 
             for batch in dataloader:
                 inputs = {k: v.to(device) for k, v in batch.items()}
-                labels = inputs.get("input_ids")
-
                 optimizer.zero_grad()
+
+                inputs["labels"] = inputs["input_ids"] 
                 outputs = model(**inputs)
-                logits = outputs.logits
-                loss = nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))
+                loss = outputs.loss
+                
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
