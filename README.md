@@ -87,7 +87,7 @@ pruner = Pruner(model, pruning_strategy=custom_neuron_selection)
 
 ## Benchmarks
 
-| Model | Corpus | Method | Pruning (%) | NLL (↓) | PPL (↓) | Speed (tok/s ↑) | Speedup (×) | Memory Saved (%) |
+| Model | Corpus | Method | Pruning (%) | NLL | PPL | Speed (tok/s) | Speedup (×) | Memory Saved (%) |
 |:------|:--------|:-------|------------:|--------:|--------:|------------------:|--------------:|-------------------:|
 | gpt2  | WikiText-2 | Baseline | 0   | 6.594 |  731.02 |    87.70 | 1.00 | 0.0 |
 | gpt2  | WikiText-2 | Pruning (structured) | 40  | 7.520 | 1845.34 |    92.52 | 1.06 | 27.7 |
