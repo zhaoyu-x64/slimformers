@@ -115,7 +115,7 @@ Below are the visual comparisons for GPT-2 on WikiText-2 after 40% structured pr
 >
 > The tokens/sec value for *Pruning + LoRA* may be inflated because of a warm GPU state and cache. A consistent warmup and averaged eval is planned for future releases. 
 >
-> These results are from a very small model (GPT-2 small, ~124M parameters) on a limited dataset. Speedups, memory savings, and loss recovery may drastictly differ for larger models and more complex corpora. Larger-scale experiments on models like LLaMA, Mistral, DeepSeek, Gemma are planned and will be added soon.
+> These results are from a very small model (GPT-2 small, ~124M parameters) on a limited dataset. Speedups, memory savings, and loss recovery may drastically differ for larger models and more complex corpora. Larger-scale experiments on models like LLaMA, Mistral, DeepSeek, Gemma are planned and will be added soon.
 
 ## Pruning Report
 
