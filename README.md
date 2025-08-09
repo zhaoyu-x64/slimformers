@@ -84,6 +84,39 @@ def custom_neuron_selection(activations, sparsity):
 # Use custom strategy
 pruner = Pruner(model, pruning_strategy=custom_neuron_selection)
 ```
+
+## Benchmarks
+
+| Model | Corpus | Method | Pruning (%) | NLL (↓) | PPL (↓) | Speed (tok/s ↑) | Speedup (×) | Memory Saved (%) |
+|:------|:--------|:-------|------------:|--------:|--------:|------------------:|--------------:|-------------------:|
+| gpt2  | WikiText-2 | Baseline | 0   | 6.594 |  731.02 |    87.70 | 1.00 | 0.0 |
+| gpt2  | WikiText-2 | Pruning (structured) | 40  | 7.520 | 1845.34 |    92.52 | 1.06 | 27.7 |
+| gpt2  | WikiText-2 | Pruning + LoRA (fine-tuning) | 40  | 4.664 |  106.03 |   763.38 | 8.70 | 27.2 |
+
+*Env: Linux&nbsp;| torch 2.6.0+cu124&nbsp;| device: cuda&nbsp;| max_length=128&nbsp;| batch=8*
+
+### Performance Visualizations
+
+Below are the visual comparisons for GPT-2 on WikiText-2 after 40% structured pruning and LoRA fine-tuning.
+
+**Eval NLL Across Stages**
+
+![NLL Comparison](experiments/gpt2_wikitext2/gpt2_wikitext2_nll_stages.png)
+
+**Generation Throughput** *(tokens/sec)*
+
+![Throughput](experiments/gpt2_wikitext2/gpt2_wikitext2_throughput.png)
+
+**Parameter Memory Footprint** *(MB)*
+
+![Memory](experiments/gpt2_wikitext2/gpt2_wikitext2_memory.png)
+
+> **Notes:** 
+>
+> The tokens/sec value for *Pruning + LoRA* may be inflated because of a warm GPU state and cache. A consistent warmup and averaged eval is planned for future releases. 
+>
+> These results are from a very small model (GPT-2 small, ~124M parameters) on a limited dataset. Speedups, memory savings, and loss recovery may drastictly differ for larger models and more complex corpora. Larger-scale experiments on models like LLaMA, Mistral, DeepSeek, Gemma are planned and will be added soon.
+
 ## Pruning Report
 
 After pruning, ```pruner.report()``` displays a summary of the compression results. This includes:
@@ -111,5 +144,3 @@ Slimformers is made to be lightweight and architecture agnostic, but there are c
 
 - **Won’t work with exotic attention layouts**  
   If your model uses grouped heads, custom fused QKV projections, or MoE-style head routing, the default slicing logic might fail. This is rare for most Hugging Face models, but possible.
-
-- **Not optimized for speed (Yet!)** 
