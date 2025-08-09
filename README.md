@@ -87,11 +87,11 @@ pruner = Pruner(model, pruning_strategy=custom_neuron_selection)
 
 ## Benchmarks
 
-| Model | Corpus | Method | Pruning (%) | NLL | PPL | Speed (tok/s) | Speedup (×) | Memory Saved (%) |
-|:------|:--------|:-------|------------:|--------:|--------:|------------------:|--------------:|-------------------:|
+| Model | Corpus | Method | Pruning&nbsp;(%) |   NLL   |   PPL   | Speed&nbsp;(tok/s) | Speedup&nbsp;(×) | Memory&nbsp;Saved&nbsp;(%) |
+|:------|:-------|:-------|-----------------:|--------:|--------:|-------------------:|-----------------:|--------------------------:|
 | gpt2  | WikiText-2 | Baseline | 0   | 6.594 |  731.02 |    87.70 | 1.00 | 0.0 |
 | gpt2  | WikiText-2 | Pruning (structured) | 40  | 7.520 | 1845.34 |    92.52 | 1.06 | 27.7 |
-| gpt2  | WikiText-2 | Pruning + LoRA (fine-tuning) | 40  | 4.664 |  106.03 |   763.38 | 8.70 | 27.2 |
+| gpt2  | WikiText-2 | Pruning + LoRA<br>(fine-tuning) | 40  | 4.664 |  106.03 |   763.38 | 8.70 | 27.2 |
 
 *Env: Linux&nbsp;| torch 2.6.0+cu124&nbsp;| device: cuda&nbsp;| max_length=128&nbsp;| batch=8*
 
