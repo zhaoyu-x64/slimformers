@@ -37,6 +37,9 @@ def lora_finetune(
     model.to(device)
     model.train()
 
+    if hasattr(model.config, "use_cache"):
+        model.config.use_cache = False
+
     try:
         from slimformers.discovery import DISCOVERY_REGISTRY, default_discover
 
@@ -90,8 +93,16 @@ def lora_finetune(
             for batch in dataloader:
                 inputs = {k: v.to(device) for k, v in batch.items()}
                 optimizer.zero_grad()
+                
+                labels = inputs["input_ids"].clone()
 
-                inputs["labels"] = inputs["input_ids"] 
+                if "attention_mask" in inputs:
+                    labels[inputs["attention_mask"] == 0] = -100
+
+                if "labels_mask" in inputs:
+                    labels[~inputs["labels_mask"].bool()] = -100
+
+                inputs["labels"] = labels
                 outputs = model(**inputs)
                 loss = outputs.loss
                 
@@ -105,4 +116,10 @@ def lora_finetune(
             console.print(f"[green][LoRA][/green] Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(dataloader):.4f}")
             progress.advance(epoch_task)
 
-    return model
+    try:
+        merged = model.merge_and_unload()
+        if hasattr(merged.config, "use_cache"):
+            merged.config.use_cache = True
+        return merged
+    except AttributeError:
+        return model
