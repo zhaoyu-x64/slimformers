@@ -72,6 +72,12 @@ DISCOVERY_REGISTRY = {
     "LlamaModel":          discover_llama_ffns,
     "LlamaForCausalLM":    discover_llama_ffns,
     "GPTOSSModel":         discover_gpt_oss_ffns,
+    "MistralModel":        discover_llama_ffns,
+    "MistralForCausalLM":  discover_llama_ffns,
+    "Qwen2Model":          discover_llama_ffns,
+    "Qwen2ForCausalLM":    discover_llama_ffns,
+    "GemmaModel":          discover_llama_ffns,
+    "GemmaForCausalLM":    discover_llama_ffns,
 }
 
 def discover_ffns_model_agnostic(model, min_hidden_dim=128):
@@ -235,4 +241,10 @@ ATTENTION_DISCOVERY_REGISTRY = {
     "LlamaModel": discover_llama_attention,
     "LlamaForCausalLM": discover_llama_attention,
     "GPTOSSModel": discover_gpt_oss_attention,
+    "MistralModel":        discover_llama_attention,
+    "MistralForCausalLM":  discover_llama_attention,
+    "Qwen2Model":          discover_llama_attention,
+    "Qwen2ForCausalLM":    discover_llama_attention,
+    "GemmaModel":          discover_llama_attention,
+    "GemmaForCausalLM":    discover_llama_attention,
 }
