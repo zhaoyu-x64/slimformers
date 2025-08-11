@@ -104,15 +104,15 @@ Below are the visual comparisons for GPT-2 on WikiText-2 after 40% structured pr
 
 **Eval NLL Across Stages**
 
-![NLL Comparison](experiments/gpt2_wikitext2/gpt2_wikitext2_nll_stages.png)
+![NLL Comparison - View Graph on GitHub](experiments/gpt2_wikitext2/gpt2_wikitext2_nll_stages.png)
 
 **Generation Throughput** *(tokens/sec)*
 
-![Throughput](experiments/gpt2_wikitext2/gpt2_wikitext2_throughput.png)
+![Throughput - View Graph on GitHub](experiments/gpt2_wikitext2/gpt2_wikitext2_throughput.png)
 
 **Parameter Memory Footprint** *(MB)*
 
-![Memory](experiments/gpt2_wikitext2/gpt2_wikitext2_memory.png)
+![Memory - View Graph on GitHub](experiments/gpt2_wikitext2/gpt2_wikitext2_memory.png)
 
 > **Notes:** 
 >
