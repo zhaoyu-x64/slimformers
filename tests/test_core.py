@@ -42,8 +42,11 @@ def count_parameters(model):
 
 # Prune MLP layers
 pruner = Pruner(model)
-pruner.prune_attention_heads(dataloader=dataloader, sparsity=0.4)
-pruner.prune_all_mlp_layers(dataloader=dataloader, sparsity=0.4)
+pruner.prune(
+    dataloader=dataloader,
+    strategy=[("ffn", {"sparsity": 0.4}), ("attn", {"max_batches": 5})],
+    sparsity=0.3
+)
 
 print("After pruning:")
 print(f"Pruned model size: {count_parameters(model):,} params")
