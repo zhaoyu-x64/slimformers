@@ -13,12 +13,11 @@ Slimformers is a lightweight Python framework for pruning and fine-tuning transf
 
 # Quick Start
 
-## Basic Pruning
+## Unified Pruning
 
 ```python
 from slimformers import Pruner
 from transformers import AutoModel, AutoTokenizer
-import torch
 
 # Load your model
 model = AutoModel.from_pretrained("bert-base-uncased")
@@ -27,19 +26,38 @@ tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 # Create pruner
 pruner = Pruner(model)
 
-# Prepare your data (returns dict with input_ids, attention_mask, etc.)
+# Prepare your DataLoader (dict with input_ids, attention_mask, etc.)
 dataloader = your_dataloader_here
 
-# Prune 30% of neurons based on activation magnitudes
+# Run pruning
+pruner.prune(
+    dataloader,
+    strategy=["ffn", "attn"],
+    sparsity=0.3,
+    max_batches=10
+)
+
+# Individual overrides:
+pruner.prune(
+    dataloader,
+    strategy=[
+        ("ffn", {"sparsity": 0.4}),
+        ("attn", {"sparsity": 0.2, "max_batches": 5}),
+    ]
+)
+```
+
+## Individual Methods (Advanced Use)
+
+``` python
+# FFN neuron pruning
 pruner.prune_all_mlp_layers(
     dataloader=dataloader,
     sparsity=0.3,
     max_batches=10
 )
-```
-## Prune Attention Heads
-``` python
-# Prune 40% of attention heads based on query activations
+
+# Attention head pruning
 pruner.prune_attention_heads(
     dataloader=dataloader,
     sparsity=0.4,
