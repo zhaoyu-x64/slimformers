@@ -406,3 +406,66 @@ class Pruner:
         if n == 0:
             raise RuntimeError(f"No activations for {blk['prefix']}")
         return total / n
+
+    def _normalize_strategy_name(self, name: str) -> str:
+        n = name.lower().strip()
+        if n in {"ffn", "mlp"}:
+            return "ffn"
+        if n in {"attention", "attn"} or n.startswith("atten"):
+            return "attention"
+        raise ValueError(f"Unknown strategy '{name}'. Valid: ['ffn'|'mlp', 'attention'|'attn']")
+
+    def prune(
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        strategy=("ffn",),                 
+        sparsity: float = 0.3,            
+        max_batches: int = 10,           
+        **common_kwargs,                   
+    ):
+        """
+        Unified entry point to run one or more pruning passes in order.
+
+        strategy:
+          - a string, e.g. "ffn" or "attention"
+          - a sequence of strings, e.g. ["ffn", "attention"]
+          - a sequence of (name, kwargs) pairs, e.g.
+                [("ffn", {"sparsity":0.4}), ("attention", {"sparsity":0.2, "max_batches":5})]
+
+        Notes: uses your existing activation-based criterion (selection rule) for both
+        FFN (MLP) neuron pruning and attention head pruning. (criterion = pruning strategy).
+        """
+        # normalize to a list of steps: [(name, kwargs), ...]
+        if isinstance(strategy, (str,)):
+            steps = [(self._normalize_strategy_name(strategy), {})]
+        else:
+            steps = []
+            for s in strategy:
+                if isinstance(s, (tuple, list)):
+                    name, kw = s
+                    steps.append((self._normalize_strategy_name(name), dict(kw)))
+                else:
+                    steps.append((self._normalize_strategy_name(s), {}))
+
+        def _run_ffn(**kw):
+            self.prune_all_mlp_layers(
+                dataloader=dataloader,
+                sparsity=kw.get("sparsity", sparsity),
+                max_batches=kw.get("max_batches", max_batches),
+            )
+
+        def _run_attention(**kw):
+            self.prune_attention_heads(
+                dataloader=dataloader,
+                sparsity=kw.get("sparsity", sparsity),
+                max_batches=kw.get("max_batches", max_batches),
+            )
+
+        runners = {
+            "ffn": _run_ffn,
+            "attention": _run_attention,
+        }
+
+        for name, per_step in steps:
+            merged = {**common_kwargs, **per_step}
+            runners[name](**merged)
