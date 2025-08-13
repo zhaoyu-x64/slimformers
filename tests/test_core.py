@@ -79,6 +79,8 @@ model = lora_finetune(
     alpha=16,
     dropout=0.05,
     task_type=TaskType.CAUSAL_LM,
+    optimizer="sgd",  
+    optimizer_kwargs={"momentum": 0.9}
 )
 
 print(f"Fine-tuned model size: {count_parameters(model):,} params")
