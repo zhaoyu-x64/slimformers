@@ -233,6 +233,31 @@ def discover_gpt_oss_attention(model):
     """
     return []
 
+def discover_opt_attention(model):
+    """
+    Locate separate-QKV attention blocks in OPT models.
+    """
+    blocks = []
+    core = getattr(model, "model", model)
+    core = getattr(core, "decoder", core) 
+
+    for i, layer in enumerate(core.layers):
+        sa = layer.self_attn
+        blocks.append({
+            "type": "separate",
+            "prefix":   f"model.decoder.layers.{i}.self_attn",
+            "q_name":   f"model.decoder.layers.{i}.self_attn.q_proj",
+            "k_name":   f"model.decoder.layers.{i}.self_attn.k_proj",
+            "v_name":   f"model.decoder.layers.{i}.self_attn.v_proj",
+            "out_name": f"model.decoder.layers.{i}.self_attn.out_proj",
+            "q":        sa.q_proj,
+            "k":        sa.k_proj,
+            "v":        sa.v_proj,
+            "out":      sa.out_proj,
+            "num_heads": sa.num_heads,
+        })
+    return blocks
+
 ATTENTION_DISCOVERY_REGISTRY = {
     "GPT2Model": discover_gpt2_attention,
     "GPT2LMHeadModel": discover_gpt2_attention,
@@ -247,4 +272,6 @@ ATTENTION_DISCOVERY_REGISTRY = {
     "Qwen2ForCausalLM":    discover_llama_attention,
     "GemmaModel":          discover_llama_attention,
     "GemmaForCausalLM":    discover_llama_attention,
+    "OPTModel": discover_opt_attention,
+    "OPTForCausalLM": discover_opt_attention,
 }
