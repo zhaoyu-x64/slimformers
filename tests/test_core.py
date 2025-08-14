@@ -40,7 +40,7 @@ dataloader = DataLoader(TextDataset(encodings), batch_size=2, shuffle=False)
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
 
-# Prune MLP layers
+# Prune
 pruner = Pruner(model)
 pruner.prune(
     dataloader=dataloader,
