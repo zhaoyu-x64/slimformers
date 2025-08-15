@@ -7,6 +7,8 @@ from .discovery import DISCOVERY_REGISTRY, default_discover, ATTENTION_DISCOVERY
 from rich.progress import Progress, BarColumn, TimeElapsedColumn, MofNCompleteColumn
 import psutil
 import os
+from .lora import lora_finetune
+from typing import Optional
 
 console = Console()
 
@@ -409,11 +411,11 @@ class Pruner:
 
     def _normalize_strategy_name(self, name: str) -> str:
         n = name.lower().strip()
-        if n in {"ffn", "mlp"}:
-            return "ffn"
-        if n in {"attention", "attn"} or n.startswith("atten"):
-            return "attention"
-        raise ValueError(f"Unknown strategy '{name}'. Valid: ['ffn'|'mlp', 'attention'|'attn']")
+        if n in {"ffn", "mlp"}: return "ffn"
+        if n in {"attention", "attn"} or n.startswith("atten"): return "attention"
+        if n in {"lora_then_prune", "lora->prune", "lora_then"}: return "lora_then_prune"
+        if n in {"prune_then_lora", "prune->lora", "prune_then"}: return "prune_then_lora"
+        raise ValueError("Unknown strategy ...")
 
     def prune(
         self,
@@ -431,6 +433,8 @@ class Pruner:
           - a sequence of strings, e.g. ["ffn", "attention"]
           - a sequence of (name, kwargs) pairs, e.g.
                 [("ffn", {"sparsity":0.4}), ("attention", {"sparsity":0.2, "max_batches":5})]
+          - "lora_then_prune" or ("lora_then_prune", {"lora_kwargs": {...}, "prune_after": ["ffn","attention"]})
+          - "prune_then_lora" or ("prune_then_lora", {"prune_before": ["ffn","attention"], "lora_kwargs": {...}})
 
         Notes: uses your existing activation-based criterion (selection rule) for both
         FFN (MLP) neuron pruning and attention head pruning. (criterion = pruning strategy).
@@ -460,12 +464,149 @@ class Pruner:
                 sparsity=kw.get("sparsity", sparsity),
                 max_batches=kw.get("max_batches", max_batches),
             )
+        
+        def _run_lora_then_prune(**kw):
+            lora_kwargs = dict(kw.get("lora_kwargs", {}))
+            if "device" not in lora_kwargs:
+                lora_kwargs["device"] = next(self.model.parameters()).device.type
 
+            console.rule("[bold cyan]LoRA Fine-tuning (pre-prune)")
+            merged = lora_finetune(
+                model=self.model,
+                dataloader=dataloader,
+                **lora_kwargs,
+            )
+            self.model = merged
+
+            r_used = lora_kwargs.get("r", None)
+            sp_used = kw.get("sparsity", sparsity)
+            try:
+                self._warn_lora_prune_collapse(r=r_used, sparsity=sp_used, safety_factor=1.5)
+            except Exception:
+                pass
+
+            prune_after = kw.get("prune_after", ["ffn", "attention"])
+            for step in prune_after:
+                st = self._normalize_strategy_name(step)
+                if st == "ffn":
+                    _run_ffn(**kw)
+                elif st == "attention":
+                    _run_attention(**kw)
+                else:
+                    raise ValueError(f"Unsupported step in prune_after: {step}")
+
+        def _run_prune_then_lora(**kw):
+            prune_before = kw.get("prune_before", ["ffn", "attention"])
+            for step in prune_before:
+                st = self._normalize_strategy_name(step)
+                if st == "ffn":
+                    _run_ffn(**kw)
+                elif st == "attention":
+                    _run_attention(**kw)
+                else:
+                    raise ValueError(f"Unsupported step in prune_before: {step}")
+
+            lora_kwargs = dict(kw.get("lora_kwargs", {}))
+            if "device" not in lora_kwargs:
+                lora_kwargs["device"] = next(self.model.parameters()).device.type
+
+            try:
+                r_req = lora_kwargs.get("r", None)
+                if r_req is not None:
+                    blocks = self._discover_mlp_blocks(self.model)
+                    def _of(layer):
+                        if isinstance(layer, nn.Linear): return layer.out_features
+                        if isinstance(layer, Conv1D):   return layer.weight.shape[1]
+                    widths = []
+                    for b in blocks:
+                        if b["type"] == "gated":
+                            for cand in (_of(b["up"]), _of(b["gate"])):
+                                if cand: widths.append(cand)
+                        else:
+                            cand = _of(b["fc"])
+                            if cand: widths.append(cand)
+                    if widths:
+                        hid_min = min(widths)
+                        if r_req >= hid_min:
+                            console.print(Panel.fit(
+                                f"[bold yellow]Warning:[/bold yellow] LoRA rank r={r_req} ≥ pruned hidden={hid_min}. "
+                                f"Reducing r to {max(1, hid_min//2)}.",
+                                title="LoRA Rank Adjustment",
+                                border_style="yellow"
+                            ))
+                            lora_kwargs["r"] = max(1, hid_min // 2)
+            except Exception:
+                pass
+
+            console.rule("[bold cyan]LoRA Fine-tuning (post-prune)")
+            merged = lora_finetune(
+                model=self.model,
+                dataloader=dataloader,
+                **lora_kwargs,
+            )
+            self.model = merged
+        
         runners = {
             "ffn": _run_ffn,
             "attention": _run_attention,
+            "lora_then_prune": _run_lora_then_prune,
+            "prune_then_lora": _run_prune_then_lora,
         }
 
         for name, per_step in steps:
             merged = {**common_kwargs, **per_step}
             runners[name](**merged)
+
+    def _warn_lora_prune_collapse(
+        self,
+        r: Optional[int],
+        sparsity: float,
+        safety_factor: float = 1.5,
+    ):
+        """
+        Warn if FFN neuron keep-count after pruning is likely to undercut LoRA's rank r.
+        Rule of thumb: keep >= safety_factor * r.
+        """
+        if r is None:
+            return
+
+        blocks = Pruner._discover_mlp_blocks(self.model)
+        if not blocks:
+            return
+
+        def _out_features(layer):
+            if isinstance(layer, nn.Linear):
+                return layer.out_features
+            if isinstance(layer, Conv1D):
+                return layer.weight.shape[1]
+            return None
+
+        hidden_sizes = []
+        for blk in blocks:
+            if blk["type"] == "gated":
+                of = _out_features(blk["up"]) or _out_features(blk["gate"])
+            else:
+                of = _out_features(blk["fc"])
+            if of is not None:
+                hidden_sizes.append(of)
+
+        if not hidden_sizes:
+            return
+
+        hid = min(hidden_sizes)
+        keep = int((1.0 - sparsity) * hid)
+
+        threshold = int(safety_factor * r)
+        if keep < threshold:
+            console.print(
+                Panel.fit(
+                    f"[bold yellow]Warning:[/bold yellow] With sparsity={sparsity:.0%}, "
+                    f"FFN keep={keep} < {safety_factor:.1f}×rank ({threshold}).\n"
+                    f"This may collapse LoRA's adapted subspace (rank={r}). "
+                    f"Consider reducing sparsity or increasing rank.",
+                    title="LoRA × Pruning Risk",
+                    border_style="yellow",
+                )
+            )
+
+    
