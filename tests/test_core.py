@@ -42,10 +42,30 @@ def count_parameters(model):
 
 # Prune
 pruner = Pruner(model)
-pruner.prune(
+"""pruner.prune(
     dataloader=dataloader,
     strategy=[("ffn", {"sparsity": 0.4}), ("attn", {"max_batches": 5})],
     sparsity=0.3
+)"""
+
+pruner.prune(
+    dataloader=dataloader,
+    strategy=[
+        ("lora_then_prune", {
+            "lora_kwargs": {
+                "epochs": 1,
+                "lr": 1e-4,
+                "r": 16,
+                "alpha": 16,
+                "dropout": 0.05,
+                "optimizer": "adamw"
+            },
+            "prune_after": ["ffn", "attention"], 
+            "sparsity": 0.4,                      
+            "max_batches": 5
+        })
+    ],
+    sparsity=0.3 
 )
 
 print("After pruning:")
