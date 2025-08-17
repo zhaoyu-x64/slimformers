@@ -23,14 +23,17 @@ class Pruner:
         self.pruning_strategy = pruning_strategy or self._compute_topk_neurons
         self.initial_params_num = sum(p.numel() for p in model.parameters())
         
-        self._init_cpu_mem = psutil.Process(os.getpid()).memory_info().rss / 1024**2
-        
-        if torch.cuda.is_available():
-            device = next(model.parameters()).device
-            torch.cuda.reset_peak_memory_stats(device)
-            self._init_gpu_mem = torch.cuda.memory_allocated(device) / 1024**2
+        self._init_cpu_mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1024**2
+
+        self._device = next(model.parameters()).device if any(p.is_cuda for p in model.parameters()) else torch.device("cpu")
+        if torch.cuda.is_available() and self._device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(self._device)
+            self._init_gpu_alloc_mb    = torch.cuda.memory_allocated(self._device) / 1024**2
+            self._init_gpu_reserved_mb = torch.cuda.memory_reserved(self._device)  / 1024**2
         else:
-            self._init_gpu_mem = None
+            self._init_gpu_alloc_mb = None
+            self._init_gpu_reserved_mb = None
+
         
         console.rule("[bold cyan]Pruner Initialized")
         console.print(
@@ -241,36 +244,50 @@ class Pruner:
 
         console.print("[bold green]Pruning Complete")    
 
-    def report(self):
+    def report(self, verbose=False):
         """
-        Print the parameter savings after pruning.
+        Print the parameter savings and memory deltas after pruning.
+        Set verbose=True to also dump torch.cuda.memory_summary().
         """
         current_params = sum(p.numel() for p in self.model.parameters())
         saved = self.initial_params_num - current_params
         percent = 100 * saved / self.initial_params_num
 
         proc = psutil.Process(os.getpid())
-        final_cpu = proc.memory_info().rss / 1024**2
-        cpu_diff = final_cpu - self._init_cpu_mem
+        final_cpu_mb = proc.memory_info().rss / 1024**2
+        cpu_diff_mb = final_cpu_mb - self._init_cpu_mem_mb
 
-        if torch.cuda.is_available():
-            device = next(self.model.parameters()).device
-            final_gpu = torch.cuda.memory_allocated(device) / 1024**2
-            peak_gpu  = torch.cuda.max_memory_allocated(device) / 1024**2
-            gpu_diff = final_gpu - self._init_gpu_mem
+        if torch.cuda.is_available() and self._device.type == "cuda":
+            final_alloc_mb    = torch.cuda.memory_allocated(self._device) / 1024**2
+            final_reserved_mb = torch.cuda.memory_reserved(self._device)  / 1024**2
+            peak_alloc_mb     = torch.cuda.max_memory_allocated(self._device) / 1024**2
+            peak_reserved_mb  = torch.cuda.max_memory_reserved(self._device)  / 1024**2
+
+            alloc_diff_mb    = final_alloc_mb    - (self._init_gpu_alloc_mb or 0.0)
+            reserved_diff_mb = final_reserved_mb - (self._init_gpu_reserved_mb or 0.0)
+
             gpu_line = (
-                f"[bold]GPU Memory (Before --> After):[/bold] "
-                f"{self._init_gpu_mem:.2f} MB --> {final_gpu:.2f} MB "
-                f"([bold green]{gpu_diff:+.2f} MB[/bold green])\n"
-                f"[bold]GPU Memory (Peak):[/bold] {peak_gpu:.2f} MB"
+                f"[bold]GPU Allocated (Before → After):[/bold] "
+                f"{(self._init_gpu_alloc_mb or 0.0):.2f} MB → {final_alloc_mb:.2f} MB "
+                f"([bold green]{alloc_diff_mb:+.2f} MB[/bold green])\n"
+                f"[bold]GPU Reserved  (Before → After):[/bold] "
+                f"{(self._init_gpu_reserved_mb or 0.0):.2f} MB → {final_reserved_mb:.2f} MB "
+                f"([bold green]{reserved_diff_mb:+.2f} MB[/bold green])\n"
+                f"[bold]GPU Peak Allocated:[/bold] {peak_alloc_mb:.2f} MB\n"
+                f"[bold]GPU Peak Reserved :[/bold] {peak_reserved_mb:.2f} MB"
             )
         else:
             gpu_line = "[dim]GPU not available — skipped[/dim]"
 
+        if verbose and torch.cuda.is_available() and self._device.type == "cuda":
+            console.rule("[bold blue]CUDA Memory Summary")
+            summary = torch.cuda.memory_summary(device=self._device)
+            console.print(f"[dim]{summary}[/dim]")
+
         cpu_line = (
             f"[bold]CPU Memory (Before --> After):[/bold] "
-            f"{self._init_cpu_mem:.2f} MB --> {final_cpu:.2f} MB "
-            f"([bold green]{cpu_diff:+.2f} MB[/bold green])"
+            f"{self._init_cpu_mem_mb:.2f} MB --> {final_cpu_mb:.2f} MB "
+            f"([bold green]{cpu_diff_mb:+.2f} MB[/bold green])"
         )
 
         console.rule("[bold magenta]Pruning Summary")
