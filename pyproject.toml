@@ -35,3 +35,6 @@ Homepage = "https://slimformers.vercel.app/"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[project.scripts]
+slimformers = "slimformers.cli:main"
