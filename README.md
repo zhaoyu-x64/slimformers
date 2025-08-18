@@ -103,6 +103,56 @@ def custom_neuron_selection(activations, sparsity):
 pruner = Pruner(model, pruning_strategy=custom_neuron_selection)
 ```
 
+# CLI
+
+Slimformers also provides a CLI for pruning Hugging Face models without writing Python code.
+
+## Basic Usage
+
+```bash
+slimformers prune \
+  --model gpt2 \
+  --data ./data.txt \
+  --ffn \
+  --sparsity 0.3 \
+  --save-to ./pruned-gpt2
+```
+
+### CLI Help
+
+```text
+usage: slimformers prune [-h] --model MODEL --data DATA [--batch-size BATCH_SIZE]
+                         [--max-seq-len MAX_SEQ_LEN] [--num-workers NUM_WORKERS]
+                         [--device DEVICE] [--dtype DTYPE] [--ffn] [--attention]
+                         [--sparsity SPARSITY] [--sparsity-ffn SPARSITY_FFN]
+                         [--sparsity-attn SPARSITY_ATTN] [--max-batches MAX_BATCHES]
+                         [--save-to SAVE_TO] [--summary] [--verbose]
+
+Prune a model (FFN and/or Attention)
+
+options:
+  --model MODEL                     HF model name or local path
+  --data DATA                       Path to a text file (one example per line)
+  --batch-size BATCH_SIZE           Batch size for data loading (default: 8)
+  --max-seq-len MAX_SEQ_LEN         Max sequence length (default: 256)
+  --num-workers NUM_WORKERS         Number of DataLoader workers
+  --device DEVICE                   Target device (cpu, cuda, etc.)
+  --dtype DTYPE                     Torch dtype: auto | fp32 | fp16 | bf16
+  --ffn                             Enable FFN (MLP) pruning
+  --attention                       Enable attention head pruning
+  --sparsity SPARSITY               Default sparsity (default: 0.3)
+  --sparsity-ffn SPARSITY_FFN       Override sparsity for FFN
+  --sparsity-attn SPARSITY_ATTN     Override sparsity for Attention
+  --max-batches MAX_BATCHES         Max batches for activation stats (default: 10)
+  --save-to SAVE_TO                 Save pruned model
+  --summary                         Print pruning summary
+  --verbose                         Verbose logging
+```
+
+```bash
+slimformers prune --help
+```
+
 ## Benchmarks
 
 | Model | Corpus | Method | Pruning&nbsp;(%) |   NLL   |   PPL   | Speed&nbsp;(tok/s) | Speedup&nbsp;(×) | Memory&nbsp;Saved&nbsp;(%) |
