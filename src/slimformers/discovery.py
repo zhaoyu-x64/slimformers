@@ -3,14 +3,19 @@ from transformers.modeling_utils import Conv1D
 
 def discover_gpt2_ffns(model):
     """
-    Locate MLP blocks in GPT-2 style models using c_fc and c_proj.
+    Locate MLP blocks in GPT-2-style models (GPT2Model or GPT2LMHeadModel).
+    Handles both:
+      - GPT2LMHeadModel.transformer.h[...].mlp
+      - GPT2Model.h[...].mlp
     """
+    core = getattr(model, "transformer", model)
     blocks = []
-    for i, block in enumerate(model.transformer.h):
+    for i, block in enumerate(core.h):
+        prefix = f"transformer.h.{i}.mlp" if hasattr(model, "transformer") else f"h.{i}.mlp"
         blocks.append({
-            "type": "ffn",
-            "fc_name":   f"transformer.h.{i}.mlp.c_fc",
-            "proj_name": f"transformer.h.{i}.mlp.c_proj",
+            "type":      "ffn",
+            "fc_name":   f"{prefix}.c_fc",
+            "proj_name": f"{prefix}.c_proj",
             "fc":        block.mlp.c_fc,
             "proj":      block.mlp.c_proj,
         })
@@ -143,17 +148,23 @@ def default_discover(model):
     return discover_ffns_model_agnostic(model)
 
 def discover_gpt2_attention(model):
+    """
+    Locate packed-QKV attention blocks in GPT-2-style models.
+    Supports GPT2LMHeadModel (.transformer.h) and GPT2Model (.h).
+    """
+    core = getattr(model, "transformer", model)
     blocks = []
-    for i, block in enumerate(model.transformer.h):
+    for i, block in enumerate(core.h):
         attn = block.attn
+        prefix = f"transformer.h.{i}.attn" if hasattr(model, "transformer") else f"h.{i}.attn"
         blocks.append({
-            "type": "packed",
-            "prefix": f"transformer.h.{i}.attn",
-            "qkv_name": f"transformer.h.{i}.attn.c_attn",
-            "out_name": f"transformer.h.{i}.attn.c_proj",
-            "qkv": attn.c_attn,
-            "out": attn.c_proj,
-            "num_heads": attn.num_heads,
+            "type":      "packed",
+            "prefix":    prefix,
+            "qkv_name":  f"{prefix}.c_attn",
+            "out_name":  f"{prefix}.c_proj",
+            "qkv":       attn.c_attn,
+            "out":       attn.c_proj,
+            "num_heads": getattr(attn, "num_heads", getattr(attn, "num_attention_heads", None)),
         })
     return blocks
 
