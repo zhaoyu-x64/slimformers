@@ -65,7 +65,7 @@ pruner.prune_attention_heads(
 )
 ```
 
-## LoRA Fine-tuning
+## LoRA Fine-tuning, Optimizer options and Recipes
 ``` python
 from slimformers import lora_finetune
 from peft import TaskType
@@ -82,6 +82,87 @@ fine_tuned_model = lora_finetune(
     task_type=TaskType.TOKEN_CLS
 )
 ```
+
+### Optimizer options & recipes
+
+You can choose the optimizer via the ```optimizer``` arg and pass extra settings with ```optimizer_kwargs```.
+
+Supported strings: ```"adamw"``` | ```"adam"``` | ```"sgd"``` (default: ```"adamw"```)
+
+#### Quick recipes
+
+**SGD with momentum + weight decay (Nesterov optional)**
+
+``` python
+fine_tuned_model = lora_finetune(
+    model=model,
+    dataloader=train_dataloader,
+    epochs=3,
+    lr=5e-4,
+    device="cuda",
+    r=8,
+    alpha=16,
+    task_type=TaskType.CAUSAL_LM,
+    optimizer="sgd",
+    optimizer_kwargs={
+        "momentum": 0.9,
+        "weight_decay": 1e-2,
+        "nesterov": True,
+    },
+)
+```
+
+**AdamW with explicit decay + betas**
+
+``` python 
+fine_tuned_model = lora_finetune(
+    model=model,
+    dataloader=train_dataloader,
+    epochs=3,
+    lr=1e-4,
+    device="cuda",
+    r=8,
+    alpha=16,
+    task_type=TaskType.CAUSAL_LM,
+    optimizer="adamw",
+    optimizer_kwargs={
+        "weight_decay": 1e-2,
+        "betas": (0.9, 0.95),
+        "eps": 1e-8,
+    },
+)
+```
+
+**Per parameter decay (no decay for bias/LayerNorm) with SGD momentum**
+
+Use a **callable factory** so the optimizer is constructed on the PEFT params:
+
+```python
+def sgd_factory(params):
+    no_decay = {"bias", "LayerNorm.weight", "layer_norm.weight"}
+    grouped = [
+        {"params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+         "weight_decay": 1e-2},
+        {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+         "weight_decay": 0.0},
+    ]
+    return torch.optim.SGD(grouped, lr=5e-4, momentum=0.9, nesterov=True)
+
+fine_tuned_model = lora_finetune(
+    model=model,
+    dataloader=train_dataloader,
+    epochs=3,
+    lr=5e-4,
+    device="cuda",
+    r=8,
+    alpha=16,
+    task_type=TaskType.CAUSAL_LM,
+    optimizer=sgd_factory,
+)
+```
+
+> Note: If you pass a pre built ```torch.optim.Optimizer instance```, it must be created after the model is PEFT-wrapped. Prefer using a string (```"sgd"```, ```"adamw"```, ```"adam"```) or a callable factory (as above), which Slimformers will invoke on the wrapped parameters.
+
 ## Custom Prune Strategy
 ``` python
 def custom_neuron_selection(activations, sparsity):
