@@ -161,7 +161,7 @@ fine_tuned_model = lora_finetune(
 )
 ```
 
-> Note: If you pass a pre built ```torch.optim.Optimizer instance```, it must be created after the model is PEFT-wrapped. Prefer using a string (```"sgd"```, ```"adamw"```, ```"adam"```) or a callable factory (as above), which Slimformers will invoke on the wrapped parameters.
+> Note: If you pass a pre built ```torch.optim.Optimizer``` instance, it must be created after the model is PEFT-wrapped. Prefer using a string (```"sgd"```, ```"adamw"```, ```"adam"```) or a callable factory (as above), which Slimformers will invoke on the wrapped parameters.
 
 ## Custom Prune Strategy
 ``` python
