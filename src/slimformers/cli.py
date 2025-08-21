@@ -439,7 +439,7 @@ def build_parser() -> argparse.ArgumentParser:
     prn = pp.add_argument_group("Pruning")
     prn.add_argument("--ffn", action="store_true", help="Enable FFN pruning")
     prn.add_argument("--attention", action="store_true", help="Enable attention head pruning")
-    prn.add_argument("--sparsity", type=parse_sparsity, default=0.3, help="Global default sparsity (e.g., 0.3 or 30%)")
+    prn.add_argument("--sparsity", type=parse_sparsity, default=0.3, help="Global default sparsity (e.g., 0.3 or 30%%)")
     prn.add_argument("--sparsity-ffn", type=parse_sparsity, default=None, help="Override FFN sparsity")
     prn.add_argument("--sparsity-attn", type=parse_sparsity, default=None, help="Override attention sparsity")
     prn.add_argument("--max-batches", type=int, default=10, help="Number of batches to estimate importance")
