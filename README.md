@@ -1,5 +1,10 @@
 # Slimformers
 
+![PyPI](https://img.shields.io/pypi/v/slimformers?color=EE6C4D)
+![License](https://img.shields.io/badge/license-MIT-3A3A3A.svg)
+![Wheel](https://img.shields.io/pypi/wheel/slimformers?color=00BFA6)
+![Implementation](https://img.shields.io/pypi/implementation/slimformers?color=6C63FF)
+
 Slimformers is a lightweight Python framework for pruning and fine-tuning transformer models. It supports activation-based MLP (FFN) pruning, attention head pruning, low-rank adaptation (LoRA) without needing any manual layer specification.
 
 # Features
