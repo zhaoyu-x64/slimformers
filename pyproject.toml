@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slimformers"
-version = "1.10.3"
+version = "1.10.4"
 description = "Lightweight Optimization and Model Adaptation For Transformers"
 authors = [
   { name="Caden Chen", email="cadenc.woss@gmail.com" }
@@ -35,7 +35,7 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: BSD License",
+  "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX",
@@ -61,3 +61,6 @@ where = ["src"]
 
 [project.scripts]
 slimformers = "slimformers.cli:main"
+
+[tool.setuptools.package-data]
+"slimformers" = ["py.typed"]
