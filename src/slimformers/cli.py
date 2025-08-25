@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 from rich.console import Console
@@ -11,7 +11,6 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TimeElapsedCo
 from rich.table import Table
 from torch.utils.data import DataLoader, Dataset
 from transformers import (
-    AutoConfig,
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
@@ -32,7 +31,7 @@ class LineByLineTextDataset(Dataset):
     def __init__(self, tokenizer, file_path: str, max_length: int = 256):
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Data file not found: {file_path}")
-        self.examples: List[Dict[str, torch.Tensor]] = []
+        self.examples: list[dict[str, torch.Tensor]] = []
         with open(file_path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -166,7 +165,7 @@ def load_model_and_tokenizer(
     device: torch.device,
     dtype: Optional[torch.dtype],
     trust_remote_code: bool = False,
-) -> Tuple[torch.nn.Module, Any]:
+) -> tuple[torch.nn.Module, Any]:
     """
     Load a Hugging Face model and tokenizer, either from name or local path.
     Prefers CausalLM, then Seq2SeqLM, then base encoder/decoder model.
@@ -177,12 +176,7 @@ def load_model_and_tokenizer(
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token or tok.unk_token
 
-    try:
-        cfg = AutoConfig.from_pretrained(model_id_or_path, trust_remote_code=trust_remote_code)
-    except Exception:
-        cfg = None
-
-    load_kwargs: Dict[str, Any] = {"trust_remote_code": trust_remote_code}
+    load_kwargs: dict[str, Any] = {"trust_remote_code": trust_remote_code}
     if dtype is not None:
         load_kwargs["torch_dtype"] = dtype
 
@@ -347,7 +341,7 @@ def prune_command(args: argparse.Namespace):
             pass
 
 
-def _run_steps(pruner: Pruner, dl, steps: List[Tuple[str, Dict[str, Any]]]):
+def _run_steps(pruner: Pruner, dl, steps: list[tuple[str, dict[str, Any]]]):
     for name, kw in steps:
         if name == "ffn":
             pruner.prune_all_mlp_layers(dl, sparsity=kw["sparsity"], max_batches=kw["max_batches"])
@@ -358,7 +352,7 @@ def _run_steps(pruner: Pruner, dl, steps: List[Tuple[str, Dict[str, Any]]]):
 def _print_and_optionally_save_summary(
     pruner: Pruner,
     cpu_before_mb: float,
-    gpu_before: Optional[Tuple[float, float]],
+    gpu_before: Optional[tuple[float, float]],
     save_json: Optional[str],
 ):
     original_params = getattr(pruner, "initial_params_num", None)

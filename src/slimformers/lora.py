@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ def lora_finetune(
     optimizer: Union[
         str, torch.optim.Optimizer, Callable[[iter], torch.optim.Optimizer], None
     ] = None,
-    optimizer_kwargs: Optional[Dict] = None,
+    optimizer_kwargs: Optional[dict] = None,
 ):
     """
     Fine-tunes a transformer model using LoRA (Low-Rank Adaptation).
