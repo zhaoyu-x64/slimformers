@@ -64,3 +64,36 @@ slimformers = "slimformers.cli:main"
 
 [tool.setuptools.package-data]
 "slimformers" = ["py.typed"]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.5.0",
+  "black>=24.3.0",
+  "mypy>=1.10.0",
+  "pytest>=8.0.0",
+  "pytest-cov>=4.1.0",
+  "types-psutil>=5.9.5.20240517",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+plugins = []
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
