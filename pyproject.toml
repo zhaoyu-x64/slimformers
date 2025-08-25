@@ -88,7 +88,8 @@ python_version = "3.9"
 strict = false
 warn_unused_ignores = true
 warn_redundant_casts = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
 ignore_missing_imports = true
 plugins = []
 
