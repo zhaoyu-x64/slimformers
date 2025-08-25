@@ -1,6 +1,7 @@
 from torch import nn
 from transformers.modeling_utils import Conv1D
 
+
 def discover_gpt2_ffns(model):
     """
     Locate MLP blocks in GPT-2-style models (GPT2Model or GPT2LMHeadModel).
@@ -12,14 +13,17 @@ def discover_gpt2_ffns(model):
     blocks = []
     for i, block in enumerate(core.h):
         prefix = f"transformer.h.{i}.mlp" if hasattr(model, "transformer") else f"h.{i}.mlp"
-        blocks.append({
-            "type":      "ffn",
-            "fc_name":   f"{prefix}.c_fc",
-            "proj_name": f"{prefix}.c_proj",
-            "fc":        block.mlp.c_fc,
-            "proj":      block.mlp.c_proj,
-        })
+        blocks.append(
+            {
+                "type": "ffn",
+                "fc_name": f"{prefix}.c_fc",
+                "proj_name": f"{prefix}.c_proj",
+                "fc": block.mlp.c_fc,
+                "proj": block.mlp.c_proj,
+            }
+        )
     return blocks
+
 
 def discover_bert_ffns(model):
     """
@@ -29,14 +33,17 @@ def discover_bert_ffns(model):
     blocks = []
 
     for i, layer in enumerate(core.encoder.layer):
-        blocks.append({
-            "type": "ffn",
-            "fc_name":   f"bert.encoder.layer.{i}.intermediate.dense",
-            "proj_name": f"bert.encoder.layer.{i}.output.dense",
-            "fc":        layer.intermediate.dense,
-            "proj":      layer.output.dense,
-        })
+        blocks.append(
+            {
+                "type": "ffn",
+                "fc_name": f"bert.encoder.layer.{i}.intermediate.dense",
+                "proj_name": f"bert.encoder.layer.{i}.output.dense",
+                "fc": layer.intermediate.dense,
+                "proj": layer.output.dense,
+            }
+        )
     return blocks
+
 
 def discover_llama_ffns(model):
     """
@@ -48,16 +55,19 @@ def discover_llama_ffns(model):
 
     for i, layer in enumerate(core.layers):
         mlp = layer.mlp
-        blocks.append({
-            "type": "gated",
-            "gate_name": f"model.layers.{i}.mlp.gate_proj",
-            "up_name":   f"model.layers.{i}.mlp.up_proj",
-            "down_name": f"model.layers.{i}.mlp.down_proj",
-            "gate":      mlp.gate_proj,
-            "up":        mlp.up_proj,
-            "down":      mlp.down_proj,
-        })
+        blocks.append(
+            {
+                "type": "gated",
+                "gate_name": f"model.layers.{i}.mlp.gate_proj",
+                "up_name": f"model.layers.{i}.mlp.up_proj",
+                "down_name": f"model.layers.{i}.mlp.down_proj",
+                "gate": mlp.gate_proj,
+                "up": mlp.up_proj,
+                "down": mlp.down_proj,
+            }
+        )
     return blocks
+
 
 def discover_gpt_oss_ffns(model):
     """
@@ -68,22 +78,24 @@ def discover_gpt_oss_ffns(model):
     """
     return []
 
+
 # Registry mapping HuggingFace model class names to discovery functions
 DISCOVERY_REGISTRY = {
-    "GPT2Model":           discover_gpt2_ffns,
-    "GPT2LMHeadModel":     discover_gpt2_ffns,
-    "BertModel":           discover_bert_ffns,
-    "BertForMaskedLM":     discover_bert_ffns,
-    "LlamaModel":          discover_llama_ffns,
-    "LlamaForCausalLM":    discover_llama_ffns,
-    "GPTOSSModel":         discover_gpt_oss_ffns,
-    "MistralModel":        discover_llama_ffns,
-    "MistralForCausalLM":  discover_llama_ffns,
-    "Qwen2Model":          discover_llama_ffns,
-    "Qwen2ForCausalLM":    discover_llama_ffns,
-    "GemmaModel":          discover_llama_ffns,
-    "GemmaForCausalLM":    discover_llama_ffns,
+    "GPT2Model": discover_gpt2_ffns,
+    "GPT2LMHeadModel": discover_gpt2_ffns,
+    "BertModel": discover_bert_ffns,
+    "BertForMaskedLM": discover_bert_ffns,
+    "LlamaModel": discover_llama_ffns,
+    "LlamaForCausalLM": discover_llama_ffns,
+    "GPTOSSModel": discover_gpt_oss_ffns,
+    "MistralModel": discover_llama_ffns,
+    "MistralForCausalLM": discover_llama_ffns,
+    "Qwen2Model": discover_llama_ffns,
+    "Qwen2ForCausalLM": discover_llama_ffns,
+    "GemmaModel": discover_llama_ffns,
+    "GemmaForCausalLM": discover_llama_ffns,
 }
+
 
 def discover_ffns_model_agnostic(model, min_hidden_dim=128):
     """
@@ -106,15 +118,17 @@ def discover_ffns_model_agnostic(model, min_hidden_dim=128):
 
         # Handle gated FFN case
         if {"gate_proj", "up_proj", "down_proj"}.issubset(set(suffixes)):
-            blocks.append({
-                "type": "gated",
-                "gate_name": f"{prefix}.gate_proj",
-                "up_name":   f"{prefix}.up_proj",
-                "down_name": f"{prefix}.down_proj",
-                "gate":      all_mods[f"{prefix}.gate_proj"],
-                "up":        all_mods[f"{prefix}.up_proj"],
-                "down":      all_mods[f"{prefix}.down_proj"],
-            })
+            blocks.append(
+                {
+                    "type": "gated",
+                    "gate_name": f"{prefix}.gate_proj",
+                    "up_name": f"{prefix}.up_proj",
+                    "down_name": f"{prefix}.down_proj",
+                    "gate": all_mods[f"{prefix}.gate_proj"],
+                    "up": all_mods[f"{prefix}.up_proj"],
+                    "down": all_mods[f"{prefix}.down_proj"],
+                }
+            )
             continue
 
         # Handle standard FFN case
@@ -126,19 +140,20 @@ def discover_ffns_model_agnostic(model, min_hidden_dim=128):
 
         if len(candidates) >= 2:
             candidates.sort(key=lambda x: x[1], reverse=True)
-            fc_name, _   = candidates[0]
+            fc_name, _ = candidates[0]
             proj_name, _ = candidates[1]
 
-            blocks.append({
-                "type": "ffn",
-                "fc_name": fc_name,
-                "proj_name": proj_name,
-                "fc":  all_mods[fc_name],
-                "proj": all_mods[proj_name],
-            })
+            blocks.append(
+                {
+                    "type": "ffn",
+                    "fc_name": fc_name,
+                    "proj_name": proj_name,
+                    "fc": all_mods[fc_name],
+                    "proj": all_mods[proj_name],
+                }
+            )
 
     return blocks
-
 
 
 def default_discover(model):
@@ -146,6 +161,7 @@ def default_discover(model):
     Default discovery entry point when no specific handler exists.
     """
     return discover_ffns_model_agnostic(model)
+
 
 def discover_gpt2_attention(model):
     """
@@ -157,16 +173,19 @@ def discover_gpt2_attention(model):
     for i, block in enumerate(core.h):
         attn = block.attn
         prefix = f"transformer.h.{i}.attn" if hasattr(model, "transformer") else f"h.{i}.attn"
-        blocks.append({
-            "type":      "packed",
-            "prefix":    prefix,
-            "qkv_name":  f"{prefix}.c_attn",
-            "out_name":  f"{prefix}.c_proj",
-            "qkv":       attn.c_attn,
-            "out":       attn.c_proj,
-            "num_heads": getattr(attn, "num_heads", getattr(attn, "num_attention_heads", None)),
-        })
+        blocks.append(
+            {
+                "type": "packed",
+                "prefix": prefix,
+                "qkv_name": f"{prefix}.c_attn",
+                "out_name": f"{prefix}.c_proj",
+                "qkv": attn.c_attn,
+                "out": attn.c_proj,
+                "num_heads": getattr(attn, "num_heads", getattr(attn, "num_attention_heads", None)),
+            }
+        )
     return blocks
+
 
 def discover_bert_attention(model):
     """
@@ -179,19 +198,21 @@ def discover_bert_attention(model):
         sa = layer.attention.self
         out_proj = layer.attention.output.dense
 
-        blocks.append({
-            "type": "separate",
-            "prefix":   f"bert.encoder.layer.{i}.attention.self",
-            "q_name":   f"bert.encoder.layer.{i}.attention.self.query",
-            "k_name":   f"bert.encoder.layer.{i}.attention.self.key",
-            "v_name":   f"bert.encoder.layer.{i}.attention.self.value",
-            "out_name": f"bert.encoder.layer.{i}.attention.output.dense",
-            "q":        sa.query,
-            "k":        sa.key,
-            "v":        sa.value,
-            "out":      out_proj,
-            "num_heads": sa.num_attention_heads,
-        })
+        blocks.append(
+            {
+                "type": "separate",
+                "prefix": f"bert.encoder.layer.{i}.attention.self",
+                "q_name": f"bert.encoder.layer.{i}.attention.self.query",
+                "k_name": f"bert.encoder.layer.{i}.attention.self.key",
+                "v_name": f"bert.encoder.layer.{i}.attention.self.value",
+                "out_name": f"bert.encoder.layer.{i}.attention.output.dense",
+                "q": sa.query,
+                "k": sa.key,
+                "v": sa.value,
+                "out": out_proj,
+                "num_heads": sa.num_attention_heads,
+            }
+        )
     return blocks
 
 
@@ -199,8 +220,6 @@ def discover_llama_attention(model):
     """
     Locate separate‐QKV attention blocks in LLaMA models.
     """
-    from torch import nn
-    from transformers.modeling_utils import Conv1D
 
     blocks = []
     core = getattr(model, "model", model)
@@ -220,20 +239,23 @@ def discover_llama_attention(model):
                 "num_heads, or config.num_attention_heads"
             )
 
-        blocks.append({
-            "type": "separate",
-            "prefix":   f"model.layers.{i}.self_attn",
-            "q_name":   f"model.layers.{i}.self_attn.q_proj",
-            "k_name":   f"model.layers.{i}.self_attn.k_proj",
-            "v_name":   f"model.layers.{i}.self_attn.v_proj",
-            "out_name": f"model.layers.{i}.self_attn.o_proj",
-            "q":        sa.q_proj,
-            "k":        sa.k_proj,
-            "v":        sa.v_proj,
-            "out":      sa.o_proj,
-            "num_heads": num_heads,
-        })
+        blocks.append(
+            {
+                "type": "separate",
+                "prefix": f"model.layers.{i}.self_attn",
+                "q_name": f"model.layers.{i}.self_attn.q_proj",
+                "k_name": f"model.layers.{i}.self_attn.k_proj",
+                "v_name": f"model.layers.{i}.self_attn.v_proj",
+                "out_name": f"model.layers.{i}.self_attn.o_proj",
+                "q": sa.q_proj,
+                "k": sa.k_proj,
+                "v": sa.v_proj,
+                "out": sa.o_proj,
+                "num_heads": num_heads,
+            }
+        )
     return blocks
+
 
 def discover_gpt_oss_attention(model):
     """
@@ -244,30 +266,34 @@ def discover_gpt_oss_attention(model):
     """
     return []
 
+
 def discover_opt_attention(model):
     """
     Locate separate-QKV attention blocks in OPT models.
     """
     blocks = []
     core = getattr(model, "model", model)
-    core = getattr(core, "decoder", core) 
+    core = getattr(core, "decoder", core)
 
     for i, layer in enumerate(core.layers):
         sa = layer.self_attn
-        blocks.append({
-            "type": "separate",
-            "prefix":   f"model.decoder.layers.{i}.self_attn",
-            "q_name":   f"model.decoder.layers.{i}.self_attn.q_proj",
-            "k_name":   f"model.decoder.layers.{i}.self_attn.k_proj",
-            "v_name":   f"model.decoder.layers.{i}.self_attn.v_proj",
-            "out_name": f"model.decoder.layers.{i}.self_attn.out_proj",
-            "q":        sa.q_proj,
-            "k":        sa.k_proj,
-            "v":        sa.v_proj,
-            "out":      sa.out_proj,
-            "num_heads": sa.num_heads,
-        })
+        blocks.append(
+            {
+                "type": "separate",
+                "prefix": f"model.decoder.layers.{i}.self_attn",
+                "q_name": f"model.decoder.layers.{i}.self_attn.q_proj",
+                "k_name": f"model.decoder.layers.{i}.self_attn.k_proj",
+                "v_name": f"model.decoder.layers.{i}.self_attn.v_proj",
+                "out_name": f"model.decoder.layers.{i}.self_attn.out_proj",
+                "q": sa.q_proj,
+                "k": sa.k_proj,
+                "v": sa.v_proj,
+                "out": sa.out_proj,
+                "num_heads": sa.num_heads,
+            }
+        )
     return blocks
+
 
 ATTENTION_DISCOVERY_REGISTRY = {
     "GPT2Model": discover_gpt2_attention,
@@ -277,12 +303,12 @@ ATTENTION_DISCOVERY_REGISTRY = {
     "LlamaModel": discover_llama_attention,
     "LlamaForCausalLM": discover_llama_attention,
     "GPTOSSModel": discover_gpt_oss_attention,
-    "MistralModel":        discover_llama_attention,
-    "MistralForCausalLM":  discover_llama_attention,
-    "Qwen2Model":          discover_llama_attention,
-    "Qwen2ForCausalLM":    discover_llama_attention,
-    "GemmaModel":          discover_llama_attention,
-    "GemmaForCausalLM":    discover_llama_attention,
+    "MistralModel": discover_llama_attention,
+    "MistralForCausalLM": discover_llama_attention,
+    "Qwen2Model": discover_llama_attention,
+    "Qwen2ForCausalLM": discover_llama_attention,
+    "GemmaModel": discover_llama_attention,
+    "GemmaForCausalLM": discover_llama_attention,
     "OPTModel": discover_opt_attention,
     "OPTForCausalLM": discover_opt_attention,
 }

@@ -1,10 +1,9 @@
 import torch
-import torch.nn as nn
+from peft import TaskType
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForMaskedLM, AutoTokenizer
-from peft import TaskType
-from slimformers import Pruner
-from slimformers import lora_finetune
+
+from slimformers import Pruner, lora_finetune
 
 # Load model and tokenizer
 model_id = "bert-base-uncased"
@@ -19,23 +18,29 @@ texts = [
     "The quick brown fox jumps over the lazy dog.",
     "Artificial intelligence is transforming the world.",
     "LoRA and pruning improve model efficiency.",
-    "Transformers are powerful neural networks."
+    "Transformers are powerful neural networks.",
 ]
 encodings = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+
 
 # Wrap tokenized data in a Dataset for DataLoader
 class TextDataset(Dataset):
     def __init__(self, encodings):
         self.encodings = encodings
+
     def __len__(self):
         return self.encodings["input_ids"].size(0)
+
     def __getitem__(self, idx):
         return {k: v[idx] for k, v in self.encodings.items()}
 
+
 dataloader = DataLoader(TextDataset(encodings), batch_size=2, shuffle=False)
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
+
 
 # Prune MLP layers
 pruner = Pruner(model)

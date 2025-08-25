@@ -1,8 +1,8 @@
 import torch
-import torch.nn as nn
+from peft import TaskType
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import TaskType
+
 from slimformers import Pruner, lora_finetune
 
 # Load Mistral model and tokenizer
@@ -19,23 +19,29 @@ texts = [
     "The quick brown fox jumps over the lazy dog.",
     "Artificial intelligence is transforming the world.",
     "LoRA and pruning improve model efficiency.",
-    "Transformers are powerful neural networks."
+    "Transformers are powerful neural networks.",
 ]
 encodings = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
+
 
 # Wrap in Dataset + DataLoader
 class TextDataset(Dataset):
     def __init__(self, encodings):
         self.encodings = encodings
+
     def __len__(self):
         return self.encodings["input_ids"].size(0)
+
     def __getitem__(self, idx):
         return {k: v[idx] for k, v in self.encodings.items()}
 
+
 dataloader = DataLoader(TextDataset(encodings), batch_size=2, shuffle=False)
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
+
 
 # Run pruning
 pruner = Pruner(model)
@@ -92,7 +98,9 @@ gen_ids_ft = model.generate(
     top_k=50,
     top_p=0.95,
 )
-print("Generated (LoRA-finetuned) text:\n", tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True))
+print(
+    "Generated (LoRA-finetuned) text:\n", tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True)
+)
 
 # Print final report
 pruner.report()

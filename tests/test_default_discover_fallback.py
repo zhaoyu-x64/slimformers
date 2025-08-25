@@ -1,16 +1,20 @@
 import torch.nn as nn
+
 from slimformers.discovery import discover_ffns_model_agnostic
+
 
 class TinyMLP(nn.Module):
     def __init__(self):
         super().__init__()
         self.block = nn.Sequential(
-            nn.Linear(8, 16), 
+            nn.Linear(8, 16),
             nn.ReLU(),
-            nn.Linear(16, 8),  
+            nn.Linear(16, 8),
         )
-    def forward(self, x): 
+
+    def forward(self, x):
         return self.block(x)
+
 
 def test_model_agnostic_discovers_pair():
     m = TinyMLP()

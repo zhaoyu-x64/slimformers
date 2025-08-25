@@ -1,16 +1,19 @@
-import torch
-from torch import nn
-from transformers.modeling_utils import Conv1D
-from rich.console import Console
-from rich.panel import Panel
-from .discovery import DISCOVERY_REGISTRY, default_discover, ATTENTION_DISCOVERY_REGISTRY
-from rich.progress import Progress, BarColumn, TimeElapsedColumn, MofNCompleteColumn
-import psutil
 import os
-from .lora import lora_finetune
 from typing import Optional
 
+import psutil
+import torch
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import BarColumn, MofNCompleteColumn, Progress, TimeElapsedColumn
+from torch import nn
+from transformers.modeling_utils import Conv1D
+
+from .discovery import ATTENTION_DISCOVERY_REGISTRY, DISCOVERY_REGISTRY, default_discover
+from .lora import lora_finetune
+
 console = Console()
+
 
 class Pruner:
     def __init__(self, model: nn.Module, pruning_strategy=None):
@@ -22,26 +25,29 @@ class Pruner:
         self.activations = {}
         self.pruning_strategy = pruning_strategy or self._compute_topk_neurons
         self.initial_params_num = sum(p.numel() for p in model.parameters())
-        
+
         self._init_cpu_mem_mb = psutil.Process(os.getpid()).memory_info().rss / 1024**2
 
-        self._device = next(model.parameters()).device if any(p.is_cuda for p in model.parameters()) else torch.device("cpu")
+        self._device = (
+            next(model.parameters()).device
+            if any(p.is_cuda for p in model.parameters())
+            else torch.device("cpu")
+        )
         if torch.cuda.is_available() and self._device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(self._device)
-            self._init_gpu_alloc_mb    = torch.cuda.memory_allocated(self._device) / 1024**2
-            self._init_gpu_reserved_mb = torch.cuda.memory_reserved(self._device)  / 1024**2
+            self._init_gpu_alloc_mb = torch.cuda.memory_allocated(self._device) / 1024**2
+            self._init_gpu_reserved_mb = torch.cuda.memory_reserved(self._device) / 1024**2
         else:
             self._init_gpu_alloc_mb = None
             self._init_gpu_reserved_mb = None
 
-        
         console.rule("[bold cyan]Pruner Initialized")
         console.print(
             Panel.fit(
                 f"Model: [bold]{type(model).__name__}[/bold]\n"
                 f"Strategy: [bold]{self.pruning_strategy.__name__}[/bold]",
                 title="Initialization Summary",
-                border_style="cyan"
+                border_style="cyan",
             )
         )
 
@@ -75,9 +81,8 @@ class Pruner:
         total = mags.numel()
         k = int((1.0 - sparsity) * total)
         keep = torch.topk(mags, k=k).indices
-        
-        return keep, total
 
+        return keep, total
 
     def _hook_activations(self, layer_name: str):
         """
@@ -88,11 +93,13 @@ class Pruner:
             lambda mod, inp, out, key=layer_name: self.activations.setdefault(key, out.detach())
         )
 
-    def _rebuild_linear(self, layer: nn.Linear, keep_out: torch.Tensor = None, keep_in:  torch.Tensor = None):
+    def _rebuild_linear(
+        self, layer: nn.Linear, keep_out: torch.Tensor = None, keep_in: torch.Tensor = None
+    ):
         """
         Rebuild a Linear layer by slicing its input/output weights.
         """
-        
+
         device = layer.weight.device
         W = layer.weight.data
         B = layer.bias.data if layer.bias is not None else None
@@ -118,15 +125,17 @@ class Pruner:
             new.bias.data = (B[keep_out] if keep_out is not None else B).to(layer.bias.device)
         return new
 
-    def _rebuild_conv1d(self, layer: Conv1D, keep_out: torch.Tensor = None, keep_in:  torch.Tensor = None):
+    def _rebuild_conv1d(
+        self, layer: Conv1D, keep_out: torch.Tensor = None, keep_in: torch.Tensor = None
+    ):
         """
         Same as _rebuild_linear but for HuggingFace's Conv1D (used in GPT-2).
         """
-        
+
         device = layer.weight.device
         W = layer.weight.data
         B = layer.bias.data if layer.bias is not None else None
-        
+
         if keep_out is not None:
             keep_out = keep_out.to(device)
         if keep_in is not None:
@@ -154,7 +163,7 @@ class Pruner:
         Replaces a module in the model with the updated version.
         For example, replaces an old Linear with a sliced one.
         """
-        parent_name, attr = name.rsplit('.', 1)
+        parent_name, attr = name.rsplit(".", 1)
         parent = dict(self.model.named_modules())[parent_name]
         setattr(parent, attr, new_mod)
 
@@ -169,7 +178,9 @@ class Pruner:
         else:
             raise TypeError(f"Can't rebuild module of type {type(layer)}")
 
-    def prune_all_mlp_layers(self, dataloader: torch.utils.data.DataLoader, sparsity: float = 0.3, max_batches: int = 10):
+    def prune_all_mlp_layers(
+        self, dataloader: torch.utils.data.DataLoader, sparsity: float = 0.3, max_batches: int = 10
+    ):
         """
         Prune MLP/FFN layers using activations collected from multiple batches in a DataLoader.
         Automatically averages activations across batches before applying the pruning strategy.
@@ -179,7 +190,7 @@ class Pruner:
             sparsity (float): Fraction of neurons to prune (0.0 keeps all, 1.0 prunes all)
             max_batches (int): Max number of batches to use for computing average activations
         """
-        
+
         self.model.eval()
         device = next(self.model.parameters()).device
 
@@ -193,7 +204,7 @@ class Pruner:
             MofNCompleteColumn(),
             TimeElapsedColumn(),
             console=console,
-            transient=True
+            transient=True,
         ) as progress:
             task = progress.add_task("Pruning MLP blocks", total=len(blocks))
 
@@ -226,23 +237,23 @@ class Pruner:
 
                 if blk["type"] == "gated":
                     new_gate = self._rebuild(blk["gate"], keep_out=keep_idx)
-                    new_up   = self._rebuild(blk["up"],   keep_out=keep_idx)
+                    new_up = self._rebuild(blk["up"], keep_out=keep_idx)
                     new_down = self._rebuild(blk["down"], keep_in=keep_idx)
 
                     self._replace_module(blk["gate_name"], new_gate)
-                    self._replace_module(blk["up_name"],   new_up)
+                    self._replace_module(blk["up_name"], new_up)
                     self._replace_module(blk["down_name"], new_down)
 
                 else:
-                    new_fc   = self._rebuild(blk["fc"],   keep_out=keep_idx)
+                    new_fc = self._rebuild(blk["fc"], keep_out=keep_idx)
                     new_proj = self._rebuild(blk["proj"], keep_in=keep_idx)
 
-                    self._replace_module(blk["fc_name"],   new_fc)
+                    self._replace_module(blk["fc_name"], new_fc)
                     self._replace_module(blk["proj_name"], new_proj)
 
                 progress.advance(task)
 
-        console.print("[bold green]Pruning Complete")    
+        console.print("[bold green]Pruning Complete")
 
     def report(self, verbose=False):
         """
@@ -258,12 +269,12 @@ class Pruner:
         cpu_diff_mb = final_cpu_mb - self._init_cpu_mem_mb
 
         if torch.cuda.is_available() and self._device.type == "cuda":
-            final_alloc_mb    = torch.cuda.memory_allocated(self._device) / 1024**2
-            final_reserved_mb = torch.cuda.memory_reserved(self._device)  / 1024**2
-            peak_alloc_mb     = torch.cuda.max_memory_allocated(self._device) / 1024**2
-            peak_reserved_mb  = torch.cuda.max_memory_reserved(self._device)  / 1024**2
+            final_alloc_mb = torch.cuda.memory_allocated(self._device) / 1024**2
+            final_reserved_mb = torch.cuda.memory_reserved(self._device) / 1024**2
+            peak_alloc_mb = torch.cuda.max_memory_allocated(self._device) / 1024**2
+            peak_reserved_mb = torch.cuda.max_memory_reserved(self._device) / 1024**2
 
-            alloc_diff_mb    = final_alloc_mb    - (self._init_gpu_alloc_mb or 0.0)
+            alloc_diff_mb = final_alloc_mb - (self._init_gpu_alloc_mb or 0.0)
             reserved_diff_mb = final_reserved_mb - (self._init_gpu_reserved_mb or 0.0)
 
             gpu_line = (
@@ -298,7 +309,7 @@ class Pruner:
                 f"[bold green]Total Reduction:[/bold green] {saved:,} ({percent:.2f}%)\n\n"
                 f"{gpu_line}\n{cpu_line}",
                 title="[bold]Compression Results[/bold]",
-                border_style="magenta"
+                border_style="magenta",
             )
         )
 
@@ -311,16 +322,18 @@ class Pruner:
         device = next(self.model.parameters()).device
         console.print(f"[bold]Starting Attention Pruning at {sparsity:.0%} Sparsity")
 
-        blocks = ATTENTION_DISCOVERY_REGISTRY.get(type(self.model).__name__, lambda m: [])(self.model)
+        blocks = ATTENTION_DISCOVERY_REGISTRY.get(type(self.model).__name__, lambda m: [])(
+            self.model
+        )
         console.print(f"[bold]Discovered {len(blocks)} attention blocks[/bold]\n")
 
         with Progress(
-                "[progress.description]{task.description}",
-                BarColumn(),
-                MofNCompleteColumn(),
-                TimeElapsedColumn(),
-                console=console,
-                transient=True
+            "[progress.description]{task.description}",
+            BarColumn(),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
         ) as progress:
             task = progress.add_task("Pruning Attention Blocks", total=len(blocks))
 
@@ -342,7 +355,7 @@ class Pruner:
                 if n == 0:
                     raise RuntimeError(f"No activations for attention block {prefix}")
 
-                avg_act = (total_acts / n).abs()    
+                avg_act = (total_acts / n).abs()
                 B, T, D = avg_act.shape
                 H = blk["num_heads"]
                 head_dim_qkv = D // H
@@ -350,10 +363,12 @@ class Pruner:
                 head_mags = avg_act.view(B, T, H, head_dim_qkv).mean(dim=(0, 1, 3))
                 keep, orig = self.pruning_strategy(head_mags, sparsity)
 
-                idx_qkv = torch.cat([
-                    torch.arange(h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device)
-                    for h in keep
-                ])
+                idx_qkv = torch.cat(
+                    [
+                        torch.arange(h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device)
+                        for h in keep
+                    ]
+                )
 
                 out_layer = blk["out"]
                 if isinstance(out_layer, Conv1D):
@@ -361,10 +376,12 @@ class Pruner:
                 else:
                     in_dim = out_layer.in_features
                 head_dim_out = in_dim // H
-                idx_out = torch.cat([
-                    torch.arange(h * head_dim_out, (h + 1) * head_dim_out, device=keep.device)
-                    for h in keep
-                ])
+                idx_out = torch.cat(
+                    [
+                        torch.arange(h * head_dim_out, (h + 1) * head_dim_out, device=keep.device)
+                        for h in keep
+                    ]
+                )
 
                 if blk["type"] == "packed":
                     new_qkv = self._rebuild(blk["qkv"], keep_out=idx_qkv)
@@ -395,12 +412,11 @@ class Pruner:
 
         if hasattr(mod, "embed_dim") and hasattr(mod, "split_size"):
             new_embed = head_dim_out * new_heads
-            mod.embed_dim   = new_embed
-            mod.split_size  = new_embed
+            mod.embed_dim = new_embed
+            mod.split_size = new_embed
 
         if hasattr(mod, "attention_head_size") and hasattr(mod, "all_head_size"):
             mod.all_head_size = mod.attention_head_size * new_heads
-
 
     def _collect_activations(self, blk, dataloader, max_batches):
         """
@@ -413,7 +429,8 @@ class Pruner:
         device = next(self.model.parameters()).device
 
         for batch in dataloader:
-            if n >= max_batches: break
+            if n >= max_batches:
+                break
             with torch.no_grad():
                 _ = self.model(**{k: v.to(device) for k, v in batch.items()})
             act = self.activations.pop(key, None)
@@ -428,19 +445,23 @@ class Pruner:
 
     def _normalize_strategy_name(self, name: str) -> str:
         n = name.lower().strip()
-        if n in {"ffn", "mlp"}: return "ffn"
-        if n in {"attention", "attn"} or n.startswith("atten"): return "attention"
-        if n in {"lora_then_prune", "lora->prune", "lora_then"}: return "lora_then_prune"
-        if n in {"prune_then_lora", "prune->lora", "prune_then"}: return "prune_then_lora"
+        if n in {"ffn", "mlp"}:
+            return "ffn"
+        if n in {"attention", "attn"} or n.startswith("atten"):
+            return "attention"
+        if n in {"lora_then_prune", "lora->prune", "lora_then"}:
+            return "lora_then_prune"
+        if n in {"prune_then_lora", "prune->lora", "prune_then"}:
+            return "prune_then_lora"
         raise ValueError("Unknown strategy ...")
 
     def prune(
         self,
         dataloader: torch.utils.data.DataLoader,
-        strategy=("ffn",),                 
-        sparsity: float = 0.3,            
-        max_batches: int = 10,           
-        **common_kwargs,                   
+        strategy=("ffn",),
+        sparsity: float = 0.3,
+        max_batches: int = 10,
+        **common_kwargs,
     ):
         """
         Unified entry point to run one or more pruning passes in order.
@@ -481,7 +502,7 @@ class Pruner:
                 sparsity=kw.get("sparsity", sparsity),
                 max_batches=kw.get("max_batches", max_batches),
             )
-        
+
         def _run_lora_then_prune(**kw):
             lora_kwargs = dict(kw.get("lora_kwargs", {}))
             if "device" not in lora_kwargs:
@@ -531,26 +552,34 @@ class Pruner:
                 r_req = lora_kwargs.get("r", None)
                 if r_req is not None:
                     blocks = self._discover_mlp_blocks(self.model)
+
                     def _of(layer):
-                        if isinstance(layer, nn.Linear): return layer.out_features
-                        if isinstance(layer, Conv1D):   return layer.weight.shape[1]
+                        if isinstance(layer, nn.Linear):
+                            return layer.out_features
+                        if isinstance(layer, Conv1D):
+                            return layer.weight.shape[1]
+
                     widths = []
                     for b in blocks:
                         if b["type"] == "gated":
                             for cand in (_of(b["up"]), _of(b["gate"])):
-                                if cand: widths.append(cand)
+                                if cand:
+                                    widths.append(cand)
                         else:
                             cand = _of(b["fc"])
-                            if cand: widths.append(cand)
+                            if cand:
+                                widths.append(cand)
                     if widths:
                         hid_min = min(widths)
                         if r_req >= hid_min:
-                            console.print(Panel.fit(
-                                f"[bold yellow]Warning:[/bold yellow] LoRA rank r={r_req} ≥ pruned hidden={hid_min}. "
-                                f"Reducing r to {max(1, hid_min//2)}.",
-                                title="LoRA Rank Adjustment",
-                                border_style="yellow"
-                            ))
+                            console.print(
+                                Panel.fit(
+                                    f"[bold yellow]Warning:[/bold yellow] LoRA rank r={r_req} ≥ pruned hidden={hid_min}. "
+                                    f"Reducing r to {max(1, hid_min//2)}.",
+                                    title="LoRA Rank Adjustment",
+                                    border_style="yellow",
+                                )
+                            )
                             lora_kwargs["r"] = max(1, hid_min // 2)
             except Exception:
                 pass
@@ -562,7 +591,7 @@ class Pruner:
                 **lora_kwargs,
             )
             self.model = merged
-        
+
         runners = {
             "ffn": _run_ffn,
             "attention": _run_attention,
@@ -625,5 +654,3 @@ class Pruner:
                     border_style="yellow",
                 )
             )
-
-    
