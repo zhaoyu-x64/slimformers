@@ -94,7 +94,9 @@ gen_ids = model.generate(
     top_p=0.95,
 )
 
-print("Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True))
+print(
+    "Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True)
+)
 
 # Apply LoRA
 model = lora_finetune(
@@ -126,7 +128,8 @@ gen_ids_ft = model.generate(
     top_p=0.95,
 )
 print(
-    "Generated (LoRA-finetuned) text:\n", tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True)
+    "Generated (LoRA-finetuned) text:\n",
+    tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True),
 )
 
 # Stats

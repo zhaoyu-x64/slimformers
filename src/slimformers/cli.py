@@ -67,7 +67,9 @@ def build_dataloader(
     Construct a DataLoader for a line-by-line text dataset.
     """
     ds = LineByLineTextDataset(tokenizer, data_path, max_length=max_length)
-    return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+    return DataLoader(
+        ds, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers
+    )
 
 
 def parse_sparsity(v: Optional[str]) -> Optional[float]:
@@ -154,7 +156,9 @@ def maybe_compile(model: torch.nn.Module, do_compile: bool) -> torch.nn.Module:
             model = torch.compile(model)  # type: ignore[attr-defined]
             console.log("[green]Compiled model with torch.compile[/green]")
         except Exception as e:
-            console.log(f"[yellow]torch.compile failed; running uncompiled: {e}[/yellow]")
+            console.log(
+                f"[yellow]torch.compile failed; running uncompiled: {e}[/yellow]"
+            )
     else:
         console.log("[yellow]PyTorch < 2.0 detected; --compile ignored[/yellow]")
     return model
@@ -221,11 +225,15 @@ def prune_command(args: argparse.Namespace):
     )
 
     if progress_ctx is None:
-        model, tok = load_model_and_tokenizer(args.model, device, dtype, args.trust_remote_code)
+        model, tok = load_model_and_tokenizer(
+            args.model, device, dtype, args.trust_remote_code
+        )
     else:
         with progress_ctx as progress:
             t = progress.add_task("Loading model & tokenizer", total=1)
-            model, tok = load_model_and_tokenizer(args.model, device, dtype, args.trust_remote_code)
+            model, tok = load_model_and_tokenizer(
+                args.model, device, dtype, args.trust_remote_code
+            )
             progress.advance(t)
 
     model = maybe_compile(model, args.compile)
@@ -262,7 +270,9 @@ def prune_command(args: argparse.Namespace):
                 "ffn",
                 {
                     "sparsity": (
-                        args.sparsity_ffn if args.sparsity_ffn is not None else args.sparsity
+                        args.sparsity_ffn
+                        if args.sparsity_ffn is not None
+                        else args.sparsity
                     ),
                     "max_batches": args.max_batches,
                 },
@@ -274,7 +284,9 @@ def prune_command(args: argparse.Namespace):
                 "attention",
                 {
                     "sparsity": (
-                        args.sparsity_attn if args.sparsity_attn is not None else args.sparsity
+                        args.sparsity_attn
+                        if args.sparsity_attn is not None
+                        else args.sparsity
                     ),
                     "max_batches": args.max_batches,
                 },
@@ -282,7 +294,9 @@ def prune_command(args: argparse.Namespace):
         )
 
     if not args.dry_run and not steps:
-        raise SystemExit("You must pass at least one of --ffn or --attention (or use --dry-run).")
+        raise SystemExit(
+            "You must pass at least one of --ffn or --attention (or use --dry-run)."
+        )
 
     import os as _os
 
@@ -332,7 +346,10 @@ def prune_command(args: argparse.Namespace):
 
     if args.save_to:
         console.print(
-            Panel.fit(f"Saving pruned model to: [bold]{args.save_to}[/bold]", border_style="green")
+            Panel.fit(
+                f"Saving pruned model to: [bold]{args.save_to}[/bold]",
+                border_style="green",
+            )
         )
         pruner.model.save_pretrained(args.save_to)
         try:
@@ -344,9 +361,13 @@ def prune_command(args: argparse.Namespace):
 def _run_steps(pruner: Pruner, dl, steps: list[tuple[str, dict[str, Any]]]):
     for name, kw in steps:
         if name == "ffn":
-            pruner.prune_all_mlp_layers(dl, sparsity=kw["sparsity"], max_batches=kw["max_batches"])
+            pruner.prune_all_mlp_layers(
+                dl, sparsity=kw["sparsity"], max_batches=kw["max_batches"]
+            )
         elif name == "attention":
-            pruner.prune_attention_heads(dl, sparsity=kw["sparsity"], max_batches=kw["max_batches"])
+            pruner.prune_attention_heads(
+                dl, sparsity=kw["sparsity"], max_batches=kw["max_batches"]
+            )
 
 
 def _print_and_optionally_save_summary(
@@ -387,7 +408,9 @@ def _print_and_optionally_save_summary(
         else:
             alloc_delta = rsrv_delta = 0.0
     else:
-        alloc_after = rsrv_after = alloc_peak = rsrv_peak = alloc_delta = rsrv_delta = None
+        alloc_after = rsrv_after = alloc_peak = rsrv_peak = alloc_delta = rsrv_delta = (
+            None
+        )
 
     table = Table(title="Slimformers Pruning Summary", show_lines=True)
     table.add_column("Metric", style="bold", justify="left")
@@ -474,7 +497,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a text file (one example per line). Required unless --dry-run.",
     )
     core.add_argument(
-        "--dry-run", action="store_true", help="Load and summarize without pruning/data passes"
+        "--dry-run",
+        action="store_true",
+        help="Load and summarize without pruning/data passes",
     )
 
     data = pp.add_argument_group("Data")
@@ -486,23 +511,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     comp = pp.add_argument_group("Compute")
-    comp.add_argument("--device", default=None, help="cpu | cuda[:id] | mps | auto (default: auto)")
+    comp.add_argument(
+        "--device", default=None, help="cpu | cuda[:id] | mps | auto (default: auto)"
+    )
     comp.add_argument("--dtype", default="auto", help="auto | fp32 | fp16 | bf16")
     comp.add_argument("--seed", type=int, default=None, help="Random seed")
     comp.add_argument(
-        "--deterministic", action="store_true", help="Use deterministic algorithms where possible"
+        "--deterministic",
+        action="store_true",
+        help="Use deterministic algorithms where possible",
     )
     comp.add_argument(
-        "--compile", action="store_true", help="Attempt torch.compile() (PyTorch 2+) for speed"
+        "--compile",
+        action="store_true",
+        help="Attempt torch.compile() (PyTorch 2+) for speed",
     )
-    comp.add_argument("--no-progress", action="store_true", help="Disable progress bars")
     comp.add_argument(
-        "--trust-remote-code", action="store_true", help="Pass trust_remote_code=True to HF loaders"
+        "--no-progress", action="store_true", help="Disable progress bars"
+    )
+    comp.add_argument(
+        "--trust-remote-code",
+        action="store_true",
+        help="Pass trust_remote_code=True to HF loaders",
     )
 
     prn = pp.add_argument_group("Pruning")
     prn.add_argument("--ffn", action="store_true", help="Enable FFN pruning")
-    prn.add_argument("--attention", action="store_true", help="Enable attention head pruning")
+    prn.add_argument(
+        "--attention", action="store_true", help="Enable attention head pruning"
+    )
     prn.add_argument(
         "--sparsity",
         type=parse_sparsity,
@@ -510,18 +547,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="Global default sparsity (e.g., 0.3 or 30%%)",
     )
     prn.add_argument(
-        "--sparsity-ffn", type=parse_sparsity, default=None, help="Override FFN sparsity"
+        "--sparsity-ffn",
+        type=parse_sparsity,
+        default=None,
+        help="Override FFN sparsity",
     )
     prn.add_argument(
-        "--sparsity-attn", type=parse_sparsity, default=None, help="Override attention sparsity"
+        "--sparsity-attn",
+        type=parse_sparsity,
+        default=None,
+        help="Override attention sparsity",
     )
     prn.add_argument(
-        "--max-batches", type=int, default=10, help="Number of batches to estimate importance"
+        "--max-batches",
+        type=int,
+        default=10,
+        help="Number of batches to estimate importance",
     )
 
     out = pp.add_argument_group("Output")
-    out.add_argument("--save-to", default=None, help="Directory to save the pruned model/tokenizer")
-    out.add_argument("--save-summary", default=None, help="Path to write a JSON summary report")
+    out.add_argument(
+        "--save-to", default=None, help="Directory to save the pruned model/tokenizer"
+    )
+    out.add_argument(
+        "--save-summary", default=None, help="Path to write a JSON summary report"
+    )
     out.add_argument("--summary", action="store_true", help="Print layer-level report")
     out.add_argument("--verbose", action="store_true")
 
@@ -545,7 +595,10 @@ def main():
         console.print("[yellow]Interrupted by user[/yellow]")
     except Exception as e:
         console.print(
-            Panel.fit(f"[bold red]Error[/bold red]\n{type(e).__name__}: {e}", border_style="red")
+            Panel.fit(
+                f"[bold red]Error[/bold red]\n{type(e).__name__}: {e}",
+                border_style="red",
+            )
         )
         raise
 

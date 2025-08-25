@@ -9,7 +9,11 @@ from rich.progress import BarColumn, MofNCompleteColumn, Progress, TimeElapsedCo
 from torch import nn
 from transformers.modeling_utils import Conv1D
 
-from .discovery import ATTENTION_DISCOVERY_REGISTRY, DISCOVERY_REGISTRY, default_discover
+from .discovery import (
+    ATTENTION_DISCOVERY_REGISTRY,
+    DISCOVERY_REGISTRY,
+    default_discover,
+)
 from .lora import lora_finetune
 
 console = Console()
@@ -35,8 +39,12 @@ class Pruner:
         )
         if torch.cuda.is_available() and self._device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(self._device)
-            self._init_gpu_alloc_mb = torch.cuda.memory_allocated(self._device) / 1024**2
-            self._init_gpu_reserved_mb = torch.cuda.memory_reserved(self._device) / 1024**2
+            self._init_gpu_alloc_mb = (
+                torch.cuda.memory_allocated(self._device) / 1024**2
+            )
+            self._init_gpu_reserved_mb = (
+                torch.cuda.memory_reserved(self._device) / 1024**2
+            )
         else:
             self._init_gpu_alloc_mb = None
             self._init_gpu_reserved_mb = None
@@ -90,11 +98,16 @@ class Pruner:
         """
         module = dict(self.model.named_modules())[layer_name]
         return module.register_forward_hook(
-            lambda mod, inp, out, key=layer_name: self.activations.setdefault(key, out.detach())
+            lambda mod, inp, out, key=layer_name: self.activations.setdefault(
+                key, out.detach()
+            )
         )
 
     def _rebuild_linear(
-        self, layer: nn.Linear, keep_out: torch.Tensor = None, keep_in: torch.Tensor = None
+        self,
+        layer: nn.Linear,
+        keep_out: torch.Tensor = None,
+        keep_in: torch.Tensor = None,
     ):
         """
         Rebuild a Linear layer by slicing its input/output weights.
@@ -122,7 +135,9 @@ class Pruner:
         new = nn.Linear(in_f, out_f, bias=(B is not None))
         new.weight.data = new_W.to(layer.weight.device)
         if B is not None:
-            new.bias.data = (B[keep_out] if keep_out is not None else B).to(layer.bias.device)
+            new.bias.data = (B[keep_out] if keep_out is not None else B).to(
+                layer.bias.device
+            )
         return new
 
     def _rebuild_conv1d(
@@ -155,7 +170,9 @@ class Pruner:
         new.weight.data = new_W.to(layer.weight.device)
         new.nf = out_c
         if B is not None:
-            new.bias.data = (B[keep_out] if keep_out is not None else B).to(layer.bias.device)
+            new.bias.data = (B[keep_out] if keep_out is not None else B).to(
+                layer.bias.device
+            )
         return new
 
     def _replace_module(self, name: str, new_mod: nn.Module):
@@ -179,7 +196,10 @@ class Pruner:
             raise TypeError(f"Can't rebuild module of type {type(layer)}")
 
     def prune_all_mlp_layers(
-        self, dataloader: torch.utils.data.DataLoader, sparsity: float = 0.3, max_batches: int = 10
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        sparsity: float = 0.3,
+        max_batches: int = 10,
     ):
         """
         Prune MLP/FFN layers using activations collected from multiple batches in a DataLoader.
@@ -209,7 +229,9 @@ class Pruner:
             task = progress.add_task("Pruning MLP blocks", total=len(blocks))
 
             for i, blk in enumerate(blocks):
-                hook_key = blk["gate_name"] if blk["type"] == "gated" else blk["fc_name"]
+                hook_key = (
+                    blk["gate_name"] if blk["type"] == "gated" else blk["fc_name"]
+                )
                 self.activations = {}
                 handle = self._hook_activations(hook_key)
 
@@ -230,7 +252,9 @@ class Pruner:
                 handle.remove()
 
                 if num_batches == 0:
-                    raise RuntimeError(f"No activations captured for block {i} ({hook_key})")
+                    raise RuntimeError(
+                        f"No activations captured for block {i} ({hook_key})"
+                    )
 
                 avg_acts = total_acts / num_batches
                 keep_idx, orig = self.pruning_strategy(avg_acts, sparsity)
@@ -322,9 +346,9 @@ class Pruner:
         device = next(self.model.parameters()).device
         console.print(f"[bold]Starting Attention Pruning at {sparsity:.0%} Sparsity")
 
-        blocks = ATTENTION_DISCOVERY_REGISTRY.get(type(self.model).__name__, lambda m: [])(
-            self.model
-        )
+        blocks = ATTENTION_DISCOVERY_REGISTRY.get(
+            type(self.model).__name__, lambda m: []
+        )(self.model)
         console.print(f"[bold]Discovered {len(blocks)} attention blocks[/bold]\n")
 
         with Progress(
@@ -365,7 +389,9 @@ class Pruner:
 
                 idx_qkv = torch.cat(
                     [
-                        torch.arange(h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device)
+                        torch.arange(
+                            h * head_dim_qkv, (h + 1) * head_dim_qkv, device=keep.device
+                        )
                         for h in keep
                     ]
                 )
@@ -378,7 +404,9 @@ class Pruner:
                 head_dim_out = in_dim // H
                 idx_out = torch.cat(
                     [
-                        torch.arange(h * head_dim_out, (h + 1) * head_dim_out, device=keep.device)
+                        torch.arange(
+                            h * head_dim_out, (h + 1) * head_dim_out, device=keep.device
+                        )
                         for h in keep
                     ]
                 )
@@ -519,7 +547,9 @@ class Pruner:
             r_used = lora_kwargs.get("r", None)
             sp_used = kw.get("sparsity", sparsity)
             try:
-                self._warn_lora_prune_collapse(r=r_used, sparsity=sp_used, safety_factor=1.5)
+                self._warn_lora_prune_collapse(
+                    r=r_used, sparsity=sp_used, safety_factor=1.5
+                )
             except Exception:
                 pass
 

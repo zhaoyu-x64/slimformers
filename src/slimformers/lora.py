@@ -110,7 +110,9 @@ def lora_finetune(
     elif isinstance(optimizer, torch.optim.Optimizer):
         opt = optimizer
     else:
-        raise TypeError("optimizer must be None, str, callable, or torch.optim.Optimizer")
+        raise TypeError(
+            "optimizer must be None, str, callable, or torch.optim.Optimizer"
+        )
 
     with Progress(
         "[progress.description]{task.description}",

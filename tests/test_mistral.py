@@ -7,7 +7,9 @@ from slimformers import Pruner, lora_finetune
 
 # Load Mistral model and tokenizer
 model_id = "mistralai/Mistral-7B-v0.1"
-model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float16, device_map="auto")
+model = AutoModelForCausalLM.from_pretrained(
+    model_id, torch_dtype=torch.float16, device_map="auto"
+)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
 # Ensure pad_token is set
@@ -66,7 +68,9 @@ gen_ids = model.generate(
     top_k=50,
     top_p=0.95,
 )
-print("Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True))
+print(
+    "Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True)
+)
 
 # LoRA fine-tuning
 print("\nStarting LoRA fine-tuning...")
@@ -99,7 +103,8 @@ gen_ids_ft = model.generate(
     top_p=0.95,
 )
 print(
-    "Generated (LoRA-finetuned) text:\n", tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True)
+    "Generated (LoRA-finetuned) text:\n",
+    tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True),
 )
 
 # Print final report

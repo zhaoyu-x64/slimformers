@@ -46,7 +46,9 @@ def count_parameters(model):
 
 # Prune
 pruner = Pruner(model)
-pruner.prune(dataloader=dataloader, strategy=[("attn", {"max_batches": 5})], sparsity=0.3)
+pruner.prune(
+    dataloader=dataloader, strategy=[("attn", {"max_batches": 5})], sparsity=0.3
+)
 
 print("After pruning:")
 print(f"Pruned model size: {count_parameters(model):,} params")
@@ -66,7 +68,9 @@ gen_ids = model.generate(
     top_p=0.95,
 )
 
-print("Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True))
+print(
+    "Generated (pruned) text:\n", tokenizer.decode(gen_ids[0], skip_special_tokens=True)
+)
 
 # Apply LoRA
 model = lora_finetune(
@@ -98,7 +102,8 @@ gen_ids_ft = model.generate(
     top_p=0.95,
 )
 print(
-    "Generated (LoRA-finetuned) text:\n", tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True)
+    "Generated (LoRA-finetuned) text:\n",
+    tokenizer.decode(gen_ids_ft[0], skip_special_tokens=True),
 )
 
 # Stats

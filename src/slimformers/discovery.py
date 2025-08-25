@@ -12,7 +12,9 @@ def discover_gpt2_ffns(model):
     core = getattr(model, "transformer", model)
     blocks = []
     for i, block in enumerate(core.h):
-        prefix = f"transformer.h.{i}.mlp" if hasattr(model, "transformer") else f"h.{i}.mlp"
+        prefix = (
+            f"transformer.h.{i}.mlp" if hasattr(model, "transformer") else f"h.{i}.mlp"
+        )
         blocks.append(
             {
                 "type": "ffn",
@@ -172,7 +174,11 @@ def discover_gpt2_attention(model):
     blocks = []
     for i, block in enumerate(core.h):
         attn = block.attn
-        prefix = f"transformer.h.{i}.attn" if hasattr(model, "transformer") else f"h.{i}.attn"
+        prefix = (
+            f"transformer.h.{i}.attn"
+            if hasattr(model, "transformer")
+            else f"h.{i}.attn"
+        )
         blocks.append(
             {
                 "type": "packed",
@@ -181,7 +187,9 @@ def discover_gpt2_attention(model):
                 "out_name": f"{prefix}.c_proj",
                 "qkv": attn.c_attn,
                 "out": attn.c_proj,
-                "num_heads": getattr(attn, "num_heads", getattr(attn, "num_attention_heads", None)),
+                "num_heads": getattr(
+                    attn, "num_heads", getattr(attn, "num_attention_heads", None)
+                ),
             }
         )
     return blocks

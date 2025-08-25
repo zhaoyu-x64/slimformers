@@ -52,13 +52,17 @@ print(f"Pruned model size: {count_parameters(model):,} params")
 
 # Forward pass test
 model.eval()
-sample_inputs = tokenizer("The quick brown [MASK] jumps over the lazy dog.", return_tensors="pt")
+sample_inputs = tokenizer(
+    "The quick brown [MASK] jumps over the lazy dog.", return_tensors="pt"
+)
 with torch.no_grad():
     out = model(**sample_inputs)
 print("Forward pass OK, logits.shape =", out.logits.shape)
 
 # Decode prediction for [MASK]
-mask_index = (sample_inputs["input_ids"] == tokenizer.mask_token_id).nonzero(as_tuple=True)[1]
+mask_index = (sample_inputs["input_ids"] == tokenizer.mask_token_id).nonzero(
+    as_tuple=True
+)[1]
 pred_token_id = out.logits[0, mask_index].argmax(dim=-1)
 predicted_token = tokenizer.decode(pred_token_id)
 print("Predicted token for [MASK]:", predicted_token)
