@@ -1,8 +1,10 @@
+from typing import Any, Dict, List
 from torch import nn
 from transformers.modeling_utils import Conv1D
 
+Block = Dict[str, Any]
 
-def discover_gpt2_ffns(model):
+def discover_gpt2_ffns(model) -> List[Block]:
     """
     Locate MLP blocks in GPT-2-style models (GPT2Model or GPT2LMHeadModel).
     Handles both:
@@ -27,7 +29,7 @@ def discover_gpt2_ffns(model):
     return blocks
 
 
-def discover_bert_ffns(model):
+def discover_bert_ffns(model) -> List[Block]:
     """
     Locate FFN blocks in BERT models.
     """
@@ -47,7 +49,7 @@ def discover_bert_ffns(model):
     return blocks
 
 
-def discover_llama_ffns(model):
+def discover_llama_ffns(model) -> List[Block]:
     """
     Locate gated FFN blocks in LLaMA models using
     gate_proj, up_proj, and down_proj.
@@ -71,7 +73,7 @@ def discover_llama_ffns(model):
     return blocks
 
 
-def discover_gpt_oss_ffns(model):
+def discover_gpt_oss_ffns(model) -> List[Block]:
     """
     Placeholder for GPT-OSS FFN discovery.
 
@@ -99,7 +101,7 @@ DISCOVERY_REGISTRY = {
 }
 
 
-def discover_ffns_model_agnostic(model, min_hidden_dim=128):
+def discover_ffns_model_agnostic(model, min_hidden_dim=128) -> List[Block]:
     """
     Generic fallback - scan all named modules, group by parent path,
     and infer FFN or gated FFN blocks from layer patterns.
@@ -158,14 +160,14 @@ def discover_ffns_model_agnostic(model, min_hidden_dim=128):
     return blocks
 
 
-def default_discover(model):
+def default_discover(model) -> List[Block]:
     """
     Default discovery entry point when no specific handler exists.
     """
     return discover_ffns_model_agnostic(model)
 
 
-def discover_gpt2_attention(model):
+def discover_gpt2_attention(model) -> List[Block]:
     """
     Locate packed-QKV attention blocks in GPT-2-style models.
     Supports GPT2LMHeadModel (.transformer.h) and GPT2Model (.h).
@@ -195,7 +197,7 @@ def discover_gpt2_attention(model):
     return blocks
 
 
-def discover_bert_attention(model):
+def discover_bert_attention(model)-> List[Block]:
     """
     Locate separate‐QKV attention blocks in BERT models.
     """
@@ -224,7 +226,7 @@ def discover_bert_attention(model):
     return blocks
 
 
-def discover_llama_attention(model):
+def discover_llama_attention(model) -> List[Block]:
     """
     Locate separate‐QKV attention blocks in LLaMA models.
     """
@@ -265,7 +267,7 @@ def discover_llama_attention(model):
     return blocks
 
 
-def discover_gpt_oss_attention(model):
+def discover_gpt_oss_attention(model) -> List[Block]:
     """
     Placeholder for GPT-OSS attention discovery.
 
@@ -275,7 +277,7 @@ def discover_gpt_oss_attention(model):
     return []
 
 
-def discover_opt_attention(model):
+def discover_opt_attention(model) -> List[Block]:
     """
     Locate separate-QKV attention blocks in OPT models.
     """
