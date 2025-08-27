@@ -65,3 +65,6 @@ dmypy.json
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# ruff Cache
+.ruff_cache
