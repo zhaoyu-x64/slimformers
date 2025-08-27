@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slimformers"
-version = "1.10.6"
+version = "1.10.7"
 description = "Lightweight Optimization and Model Adaptation For Transformers"
 authors = [
   { name="Caden Chen", email="cadenc.woss@gmail.com" }
@@ -89,7 +89,6 @@ strict = false
 warn_unused_ignores = true
 warn_redundant_casts = true
 disallow_untyped_defs = false
-ignore_missing_imports = true
 ignore_missing_imports = true
 plugins = []
 
