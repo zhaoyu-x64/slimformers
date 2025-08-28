@@ -5,6 +5,7 @@ from transformers.modeling_utils import Conv1D
 
 Block = dict[str, Any]
 
+
 def discover_gpt2_ffns(model) -> list[Block]:
     """
     Locate MLP blocks in GPT-2-style models (GPT2Model or GPT2LMHeadModel).
@@ -198,7 +199,7 @@ def discover_gpt2_attention(model) -> list[Block]:
     return blocks
 
 
-def discover_bert_attention(model)-> list[Block]:
+def discover_bert_attention(model) -> list[Block]:
     """
     Locate separate‐QKV attention blocks in BERT models.
     """
