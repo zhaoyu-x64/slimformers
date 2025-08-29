@@ -84,7 +84,6 @@ select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
 
 [tool.mypy]
-ignore_errors = True
 python_version = "3.9"
 strict = false
 warn_unused_ignores = true
@@ -92,6 +91,9 @@ warn_redundant_casts = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 plugins = []
+
+[mypy]
+ignore_errors = True
 
 [tool.pytest.ini_options]
 addopts = "-q"
