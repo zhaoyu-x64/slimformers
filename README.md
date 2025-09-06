@@ -11,7 +11,7 @@ Slimformers is a lightweight Python framework for pruning and fine-tuning transf
 
 - Prunes neurons based on average activations across multiple batches
 - Prunes attention heads based on mean query activations
-- Automatic FFN and gated FFN block discovery for common architectures (GPT-2, BERT, LLaMA)
+- Automatic FFN and gated FFN block discovery for common architectures (GPT-2, BERT, LLaMA, OPT)
 - Safely rebuilds pruned `nn.Linear` and `Conv1D` layers
 - LoRA fine-tuning with auto-inferred target modules
 - Compatible with Hugging Face models and tokenizers
