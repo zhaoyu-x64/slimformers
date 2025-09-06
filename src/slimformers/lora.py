@@ -152,7 +152,7 @@ def lora_finetune(
 
             progress.remove_task(batch_task)
             console.print(
-                f"[green][LoRA][/green] Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(dataloader):.4f}"
+                f"[green][LoRA] Epoch {epoch+1}/{epochs} | Loss: {total_loss / len(dataloader):.4f}"
             )
             progress.advance(epoch_task)
 
