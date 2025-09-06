@@ -294,7 +294,7 @@ Pruning was run on ```deepseek-ai/deepseek-coder-1.3b-base``` with 40% sparsity 
 
 Slimformers is made to be lightweight and architecture agnostic, but there are current limitations:
 
-- **Limited model support (for now)**  
+- **Model support is limited at this time**  
   Currently, attention head and FFN pruning supports GPT‑2, BERT, and LLaMA type models. Encoder-decoder architectures like T5 or BART (with cross-attention), and other variants like Falcon or BLOOM, are not supported yet. Also, FFN pruning assumes standard `nn.Linear` or `Conv1D` layers. If your model uses custom MLP designs like SwiGLU or fused blocks, you'll need to add custom discovery logic.
 
   That said, **support for more models will be added over time**. The framework is modular, and the discovery system is easy to extend. Feel free to contribute or fork it to add support for other architectures. I will continue to expand the library's coverage.
