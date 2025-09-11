@@ -11,7 +11,6 @@ model_id = "facebook/opt-125m"
 model = AutoModelForCausalLM.from_pretrained(model_id)
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-# GPT-2 doesn't have offical padding token
 tokenizer.pad_token = tokenizer.eos_token
 
 # Sample corpus
