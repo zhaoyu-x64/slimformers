@@ -1,6 +1,7 @@
 # Slimformers
 
 ![PyPI](https://img.shields.io/pypi/v/slimformers?color=EE6C4D)
+![Downloads](https://img.shields.io/pepy/dt/slimformers)
 ![License](https://img.shields.io/badge/license-MIT-3A3A3A.svg)
 ![Wheel](https://img.shields.io/pypi/wheel/slimformers?color=00BFA6)
 ![Implementation](https://img.shields.io/pypi/implementation/slimformers?color=6C63FF)
