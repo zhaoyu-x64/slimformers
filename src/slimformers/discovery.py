@@ -90,7 +90,7 @@ def discover_mixtral_ffns(model) -> list[Block]:
     Locate MoE FFN blocks in mixtral type models
 
     Mixtral layers contain multiple expert FFNs combined with a gating mechanism. This function detects those experts and returns
-   projection layers.
+    projection layers.
     """
     blocks = []
     core = getattr(model, "model", model)
