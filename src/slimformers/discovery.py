@@ -85,6 +85,48 @@ def discover_gpt_oss_ffns(model) -> list[Block]:
     return []
 
 
+def discover_mixtral_ffns(model) -> list[Block]:
+    """
+    Locate MoE FFN blocks in mixtral type models
+
+    Mixtral layers contain multiple expert FFNs combined with a gating mechanism. This function detects those experts and returns
+   projection layers.
+    """
+    blocks = []
+    core = getattr(model, "model", model)
+
+    for i, layer in enumerate(core.layers):
+        moe = getattr(layer, "block_sparse_moe", None)
+        if moe is None or not hasattr(moe, "experts"):
+            continue
+
+        # Each expert is a miniFFN with up_proj, down_proj and perhaps a gate_proj
+        for j, expert in enumerate(moe.experts):
+            block = {
+                "type": "expert_ffn",
+                "layer_index": i,
+                "expert_index": j,
+                "gate_name": f"model.layers.{i}.block_sparse_moe.gate",
+                "up_name": f"model.layers.{i}.block_sparse_moe.experts.{j}.up_proj",
+                "down_name": f"model.layers.{i}.block_sparse_moe.experts.{j}.down_proj",
+                "gate": moe.gate,
+                "up": expert.up_proj,
+                "down": expert.down_proj,
+            }
+
+            # add gated variant if present
+            if hasattr(expert, "gate_proj"):
+                block.update({
+                    "gate_proj_name": f"model.layers.{i}.block_sparse_moe.experts.{j}.gate_proj",
+                    "gate_proj": expert.gate_proj,
+                    "type": "expert_gated_ffn",
+                })
+
+            blocks.append(block)
+
+    return blocks
+
+
 # Registry mapping HuggingFace model class names to discovery functions
 DISCOVERY_REGISTRY = {
     "GPT2Model": discover_gpt2_ffns,
@@ -96,6 +138,8 @@ DISCOVERY_REGISTRY = {
     "GPTOSSModel": discover_gpt_oss_ffns,
     "MistralModel": discover_llama_ffns,
     "MistralForCausalLM": discover_llama_ffns,
+    "MixtralModel": discover_mixtral_ffns,
+    "MixtralForCausalLM": discover_mixtral_ffns,
     "Qwen2Model": discover_llama_ffns,
     "Qwen2ForCausalLM": discover_llama_ffns,
     "GemmaModel": discover_llama_ffns,
