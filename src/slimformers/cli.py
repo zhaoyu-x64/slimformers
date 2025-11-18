@@ -178,7 +178,10 @@ def load_model_and_tokenizer(
         model_id_or_path, use_fast=True, trust_remote_code=trust_remote_code
     )
     if tok.pad_token is None:
+        # no pad token, I set one for training
         tok.pad_token = tok.eos_token or tok.unk_token
+        if tok.pad_token_id is None:
+            tok.pad_token_id = tok.convert_tokens_to_ids(tok.pad_token)
 
     load_kwargs: dict[str, Any] = {"trust_remote_code": trust_remote_code}
     if dtype is not None:
